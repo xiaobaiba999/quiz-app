@@ -1,13 +1,12 @@
 {
-  "version": "2.3.0",
-  "changelog": "Chart.js CDN加载失败降级处理；Service Worker缓存版本自动关联；构建脚本自动同步www目录；修复事件重复绑定；修复DB重试无限循环；补全暗色模式样式；优化空题库友好提示",
+  "version": "2.4.0",
+  "changelog": "OTA改用jsDelivr CDN解决国内网络访问问题；去除PDF/Word/PPT导入仅支持TXT/Markdown；增强文档解析支持更多非标准格式",
   "updateUrl": "",
   "files": {
     "index.html": "index.html",
     "app.js": "app.js",
     "ota.js": "ota.js",
     "manifest.json": "manifest.json",
-    "file-parser.js": "file-parser.js",
     "import.js": "import.js",
     "service-worker.js": "service-worker.js",
     "style.css": "style.css",
@@ -17,7 +16,6 @@
     "ui.js": "ui.js",
     "stats.js": "stats.js",
     "practice.js": "practice.js",
-    "edit.js": "edit.js",
-    "ai.js": "ai.js"
+    "edit.js": "edit.js"
   }
 }

@@ -1,7 +1,7 @@
 // 刷题助手 - Service Worker
 // 网络优先策略 + OTA 热更新支持
 
-var APP_VERSION = '2.3.0';
+var APP_VERSION = '2.4.0';
 var CACHE_NAME = 'quiz-app-v' + APP_VERSION.replace(/\./g, '');
 
 // 需要缓存的文件列表
