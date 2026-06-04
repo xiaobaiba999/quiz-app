@@ -397,16 +397,24 @@ function parseTXT(text) {
     let answer = '';
     let explanation = '';
     let tags = [];
+    let hasQuestionLine = false; // 是否已识别到题目行
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      // 记录原始行号（用于警告提示）
       const lineNum = i + 1;
+
+      // 跳过章节标题行（如 "选择题（每题2分）"）
+      if (/^(?:选择|判断|填空|简答|问答|计算|综合|应用)[题题]/.test(line)) continue;
+      // 跳过纯数字分值行（如 "（每题2分，共20分）"）
+      if (/^[（(]\s*(?:每|共)\s*\d+/.test(line)) continue;
+      // 跳过单独的括号行
+      if (/^[（(]$/.test(line)) continue;
 
       // 题目行：以数字开头，后跟 . 或 、或 ）
       const questionMatch = line.match(/^(\d+)[.、）)]\s*(.+)/);
       if (questionMatch) {
         content = questionMatch[2].trim();
+        hasQuestionLine = true;
         continue;
       }
 
@@ -448,13 +456,12 @@ function parseTXT(text) {
       const tagMatch = line.match(/^(?:标签|分类)\s*[:：]\s*(.+)/);
       if (tagMatch) {
         const tagStr = tagMatch[1].trim();
-        // 支持逗号、顿号分隔
         const parsedTags = tagStr.split(/[,，、]/).map(t => t.trim()).filter(t => t.length > 0);
         tags.push(...parsedTags);
         continue;
       }
 
-      // 未匹配行：可能是上一个空选项的文本，或包含内联选项
+      // 未匹配行处理
       if (options.length > 0) {
         const lastOpt = options[options.length - 1];
         // 上一个选项文本为空，此行作为该选项的文本
@@ -462,14 +469,38 @@ function parseTXT(text) {
           lastOpt.text = line;
           continue;
         }
-        // 尝试从行内提取内联选项（如 "BGP B. IGP C. RIP D. OSPF"）
+        // 尝试从行内提取内联选项
         const extracted = extractInlineOptions(line);
         if (extracted.options.length > 0) {
-          // 第一个选项前的文本补充给上一个选项
           if (extracted.textBefore && lastOpt.text === '') {
             lastOpt.text = extracted.textBefore;
           }
           options.push(...extracted.options);
+          continue;
+        }
+      }
+
+      // 如果还没有题目内容，此行可能是题目（无题号的情况）
+      if (!content && !hasQuestionLine) {
+        // 检查是否像题目内容（含问号、或足够长且不像元数据）
+        if (/[？?]/.test(line) || (line.length > 5 && !/^[（(]\d/.test(line))) {
+          content = line;
+          hasQuestionLine = true;
+          continue;
+        }
+      }
+
+      // 如果已有题目和答案但没有解析，此行可能是解析补充
+      if (content && answer && !explanation) {
+        explanation = line;
+        continue;
+      }
+
+      // 如果已有题目但没有答案，此行可能是答案补充（如判断题的答案在题目行后）
+      if (content && !answer) {
+        // 检查是否像判断题答案
+        if (/^(?:对|错|正确|错误|√|×|✓|✗|T|F|TRUE|FALSE|是|否)$/i.test(line)) {
+          answer = line;
           continue;
         }
       }
@@ -479,7 +510,6 @@ function parseTXT(text) {
     }
 
     // 后处理：拆分选项文本中的内联选项
-    // 例如选项 A 的文本是 "BGP B. IGP C. RIP D. OSPF"
     const finalOptions = [];
     for (const opt of options) {
       const split = trySplitInlineOptions(opt.text);

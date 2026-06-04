@@ -170,30 +170,46 @@
     // 2. 去除页眉页脚常见模式
     text = text.replace(/第\s*\d+\s*页\s*[，,]?\s*共\s*\d+\s*页/g, '');
     text = text.replace(/Page\s*\d+\s*(of|\/)\s*\d+/gi, '');
-    text = text.replace(/-\s*\d+\s*-/g, ''); // - 1 - 形式页码
+    text = text.replace(/-\s*\d+\s*-/g, '');
 
     // 3. 统一选项标记格式：将各种选项标记统一为 "A. " 格式
-    // "A、" "A）" "A)" "A．" "A" 后跟空格和文本 → "A. "
+    // "(A)" "(A " "（A）" "（A " → "A. "
+    text = text.replace(/[（(]\s*([A-Da-d])\s*[）)]\s*/g, '$1. ');
+    // "A、" "A）" "A)" "A．" → "A. "
     text = text.replace(/^([A-Da-d])[、）)\．]\s*/gm, '$1. ');
+    // "A" 后跟空格和文本（非选项标记行）→ "A. "
     text = text.replace(/^([A-Da-d])\s+(?=\S)/gm, '$1. ');
 
-    // 4. 修复 PDF 提取时选项粘连：同一行出现多个选项标记
-    // "A. xxx B. yyy C. zzz" → 拆为多行
+    // 3.5 同行多选项拆分：将同一行中的多个选项标记拆为多行
+    // "A. xxx B. yyy C. zzz D. zzz" → 每个选项一行
+    // 先处理 (A) 格式已被转为 A. 的情况
+    text = text.replace(/([^\n])\s+([B-Db-d])\.\s*/g, function (match, before, letter) {
+      // 避免误拆：如果 before 本身是选项标记的末尾，不拆
+      if (/[A-Da-d]\.\s*$/.test(before)) return match;
+      return before + '\n' + letter.toUpperCase() + '. ';
+    });
+
+    // 4. 修复 PDF 提取时选项粘连（保留兼容）
     text = text.replace(/([^\n])\s+([B-Db-d])[.、．]\s*/g, function (match, before, letter) {
       if (/[A-Da-d][.、．]\s*$/.test(before)) return match;
       return before + '\n' + letter.toUpperCase() + '. ';
     });
 
     // 5. 修复题号格式：统一为 "1. " 格式
-    // "1、" "1）" "1)" "1．" → "1. "
     text = text.replace(/^(\d+)[、）)\．]\s*/gm, '$1. ');
-    // "一、" "二、" 等中文序号 → "1. " "2. "（仅当后面看起来像题目）
+    // 中文序号 → 阿拉伯数字（仅当后面看起来像题目）
     var cnNumMap = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,
                     '十一':11,'十二':12,'十三':13,'十四':14,'十五':15,'二十':20};
     text = text.replace(/^(十?[一二三四五六七八九十]+)[、．.]\s*/gm, function (m, cn) {
       var num = cnNumMap[cn];
       return num ? num + '. ' : m;
     });
+
+    // 5.5 去除章节标题（如 "二、选择题（每题2分，共20分）" "四、问答题（共44分）"）
+    // 这些不是题目，需要移除
+    text = text.replace(/^[一二三四五六七八九十]+[、．.]\s*(?:[一二三四五六七八九十]+[、．.])?\s*(?:选择|判断|填空|简答|问答|计算|综合|应用)[题题].*$/gm, '');
+    // "选择题" "判断题" 等独立标题行
+    text = text.replace(/^(?:选择|判断|填空|简答|问答|计算|综合|应用)[题题]\s*[（(].*$/gm, '');
 
     // 6. 修复题号粘连：将 "1.题目2.题目" 拆开
     text = text.replace(/([^\n])(\d+)[.、）)]\s*(?=[^\d\s])/g, function (match, before, num) {
@@ -204,11 +220,8 @@
     });
 
     // 7. 统一答案/解析/标签标记格式
-    // "答案：" "答案:" "答：" "答:" → "答案："
     text = text.replace(/^答(?:案)?\s*[:：]\s*/gm, '答案：');
-    // "解析：" "解释：" "解：" → "解析："
     text = text.replace(/^解(?:释|析)?\s*[:：]\s*/gm, '解析：');
-    // "标签：" "分类：" → "标签："
     text = text.replace(/^分类\s*[:：]\s*/gm, '标签：');
 
     // 8. 修复答案/解析/标签前缺换行
@@ -217,7 +230,6 @@
     text = text.replace(/([^\n])(标签：)/g, '$1\n$2');
 
     // 9. 修复判断题答案格式统一
-    // "答案：正确" "答案：√" "答案：T" → "答案：对"
     text = text.replace(/答案：\s*(?:正确|√|✓|T|TRUE|是)\s*$/gm, '答案：对');
     text = text.replace(/答案：\s*(?:错误|×|✗|F|FALSE|否)\s*$/gm, '答案：错');
 
@@ -228,13 +240,13 @@
     text = text.replace(/\(\s*\)/g, '___');
     text = text.replace(/【\s*】/g, '___');
 
-    // 11. 合并被意外拆分的行（选项/答案/解析不应被空行隔开）
+    // 11. 合并被意外拆分的行
     text = text.replace(/(\S)\n\n([A-D][.、])/g, '$1\n$2');
     text = text.replace(/(\S)\n\n(答案：)/g, '$1\n$2');
     text = text.replace(/(\S)\n\n(解析：)/g, '$1\n$2');
     text = text.replace(/(\S)\n\n(标签：)/g, '$1\n$2');
 
-    // 12. 去除多余空行（超过2个连续空行合并为1个）
+    // 12. 去除多余空行
     text = text.replace(/\n{3,}/g, '\n\n');
 
     // 13. 去除行首尾空白

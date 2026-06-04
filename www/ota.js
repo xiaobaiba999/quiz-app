@@ -13,6 +13,62 @@
   var DEFAULT_MANIFEST_URL = 'https://xiaobaiba999.github.io/quiz-app/manifest-ota.json';
 
   /**
+   * 使用 XMLHttpRequest 发起 GET 请求（绕过 fetch 的 CORS 限制）
+   * XHR 在 Capacitor WebView 中对有 CORS 头的 HTTPS 资源可正常工作
+   */
+  function _xhrGetJson(url) {
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.setRequestHeader('Accept', 'application/json');
+      xhr.timeout = 15000;
+      xhr.onload = function () {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch (e) {
+            reject(new Error('JSON解析失败'));
+          }
+        } else {
+          reject(new Error('HTTP ' + xhr.status));
+        }
+      };
+      xhr.onerror = function () {
+        reject(new Error('网络请求失败'));
+      };
+      xhr.ontimeout = function () {
+        reject(new Error('请求超时'));
+      };
+      xhr.send();
+    });
+  }
+
+  /**
+   * 使用 XHR 获取文件内容（返回文本，用于缓存更新）
+   */
+  function _xhrGetText(url) {
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.timeout = 30000;
+      xhr.onload = function () {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(xhr.responseText);
+        } else {
+          reject(new Error('HTTP ' + xhr.status));
+        }
+      };
+      xhr.onerror = function () {
+        reject(new Error('网络请求失败'));
+      };
+      xhr.ontimeout = function () {
+        reject(new Error('请求超时'));
+      };
+      xhr.send();
+    });
+  }
+
+  /**
    * 获取当前版本号
    */
   OTAModule.getCurrentVersion = function () {
@@ -39,7 +95,6 @@
 
   /**
    * 检查更新
-   * @returns {Promise<object|null>} 更新信息，null 表示无更新或当前已是最新
    */
   OTAModule.checkForUpdate = function () {
     var manifestUrl = OTAModule.getManifestUrl();
@@ -47,18 +102,12 @@
       return Promise.resolve(null);
     }
 
-    return fetch(manifestUrl + '?t=' + Date.now(), {
-      cache: 'no-cache',
-      mode: 'cors'
-    }).then(function (response) {
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      return response.json();
-    }).then(function (manifest) {
+    var fullUrl = manifestUrl + '?t=' + Date.now();
+    return _xhrGetJson(fullUrl).then(function (manifest) {
       localStorage.setItem(UPDATE_CHECK_KEY, new Date().toISOString());
 
       if (!manifest.version) return { _error: '清单缺少版本号' };
 
-      // 比较版本号
       var cmp = _compareVersions(manifest.version, CURRENT_VERSION);
       if (cmp > 0) {
         return {
@@ -70,7 +119,6 @@
         };
       }
 
-      // 返回远程版本信息供 UI 显示（但不是更新）
       return { _current: true, remoteVersion: manifest.version };
     }).catch(function (err) {
       console.error('[OTA] 检查更新失败:', err);
@@ -79,16 +127,14 @@
   };
 
   /**
-   * 应用更新（通知 Service Worker 更新缓存）
-   * @param {object} updateInfo - 更新信息
-   * @returns {Promise<boolean>}
+   * 应用更新
    */
   OTAModule.applyUpdate = function (updateInfo) {
     if (!updateInfo) {
       return Promise.reject(new Error('无效的更新信息'));
     }
 
-    // 方式1：通过 Service Worker 更新（有 updateUrl 时）
+    // 方式1：通过 Service Worker 更新
     if (updateInfo.updateUrl && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
       return new Promise(function (resolve) {
         var messageChannel = new MessageChannel();
@@ -112,36 +158,40 @@
       });
     }
 
-    // 方式2：直接更新缓存（GitHub Pages 同源文件）
+    // 方式2：直接更新缓存
     if (updateInfo.files && Object.keys(updateInfo.files).length > 0) {
       return _directUpdateCache(updateInfo);
     }
 
-    // 方式3：没有 Service Worker 也没有文件列表，直接刷新
     return Promise.resolve(true);
   };
 
   /**
-   * 直接更新缓存中的文件（用于 GitHub Pages 同源部署）
+   * 直接更新缓存中的文件
    */
   function _directUpdateCache(updateInfo) {
     if (!('caches' in window)) {
       return Promise.resolve(true);
     }
 
+    var baseUrl = OTAModule.getManifestUrl();
+    baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
+
     return caches.open(CACHE_NAME).then(function (cache) {
       var promises = Object.keys(updateInfo.files).map(function (filePath) {
         var fileUrl = updateInfo.files[filePath];
-        // 如果是相对路径，转为绝对路径
         if (fileUrl && !fileUrl.startsWith('http')) {
-          fileUrl = new URL(fileUrl, window.location.origin).href;
+          fileUrl = baseUrl + fileUrl;
         }
         if (!fileUrl) return Promise.resolve();
 
-        return fetch(fileUrl + '?t=' + Date.now(), { cache: 'no-cache' }).then(function (response) {
-          if (response.ok) {
-            return cache.put(new Request('/' + filePath), response);
-          }
+        // 用 XHR 下载文件内容，再写入缓存
+        return _xhrGetText(fileUrl + '?t=' + Date.now()).then(function (text) {
+          var response = new Response(text, {
+            status: 200,
+            headers: { 'Content-Type': 'application/javascript' }
+          });
+          return cache.put(new Request('/' + filePath), response);
         }).catch(function () {
           // 单个文件更新失败不中断
         });
@@ -186,7 +236,7 @@
     });
   };
 
-  // ===== 显示更新弹窗（启动时） =====
+  // ===== 显示更新弹窗 =====
   function _showUpdateModal(update) {
     var changelogHtml = '';
     if (update.changelog) {
@@ -208,7 +258,6 @@
           changelogHtml +
         '</div>',
         function () {
-          // 确认更新
           OTAModule.applyUpdate(update).then(function (success) {
             if (success) {
               window.UIModule.showToast('更新成功，即将重启...');
