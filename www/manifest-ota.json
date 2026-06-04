@@ -1,6 +1,6 @@
 {
-  "version": "2.4.0",
-  "changelog": "OTA改用jsDelivr CDN解决国内网络访问问题；去除PDF/Word/PPT导入仅支持TXT/Markdown；增强文档解析支持更多非标准格式",
+  "version": "2.5.0",
+  "changelog": "OTA热更新测试版本；修复更新后重复弹窗问题；修复更新后重启不生效问题",
   "updateUrl": "",
   "files": {
     "index.html": "index.html",
