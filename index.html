@@ -137,22 +137,8 @@
           <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><path d="M24 6L14 18h6v14h8V18h6L24 6z" fill="currentColor"/><path d="M8 34v6h32v-6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <p>点击或拖拽文件到此处</p>
-        <p class="upload-hint">支持 TXT / Markdown / PDF / Word / PPT</p>
-        <input type="file" id="file-input" accept=".txt,.md,.markdown,.pdf,.doc,.docx,.ppt,.pptx" hidden>
-      </div>
-      <!-- AI 转换进度 -->
-      <div id="ai-convert-progress" style="display:none;">
-        <div class="ai-progress-card">
-          <div class="ai-progress-header">
-            <div class="ai-progress-spinner"></div>
-            <span class="ai-progress-title">AI 智能转换中</span>
-          </div>
-          <div class="ai-progress-text" id="ai-progress-text">正在解析文件...</div>
-          <div class="ai-progress-bar-container">
-            <div class="ai-progress-bar" id="ai-progress-bar"></div>
-          </div>
-          <button class="btn btn-outline btn-small" id="btn-cancel-ai" style="margin-top:12px;">取消</button>
-        </div>
+        <p class="upload-hint">支持 TXT / Markdown 格式</p>
+        <input type="file" id="file-input" accept=".txt,.md,.markdown" hidden>
       </div>
       <div id="import-preview" style="display:none;">
         <div class="import-file-info" id="import-file-info"></div>
@@ -459,8 +445,6 @@ B. 选项B
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="db.js"></script>
   <script src="router.js"></script>
-  <script src="file-parser.js"></script>
-  <script src="ai.js"></script>
   <script src="ota.js"></script>
   <script src="import.js"></script>
   <script src="theme.js"></script>
