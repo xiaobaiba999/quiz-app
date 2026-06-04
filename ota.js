@@ -7,7 +7,7 @@
 
   var VERSION_KEY = 'quiz_app_version';
   var UPDATE_CHECK_KEY = 'quiz_last_update_check';
-  var CURRENT_VERSION = '2.2.0';
+  var CURRENT_VERSION = '2.1.0';
 
   // 默认更新清单地址（GitHub Pages 部署后自动可用）
   var DEFAULT_MANIFEST_URL = 'https://xiaobaiba999.github.io/quiz-app/manifest-ota.json';
@@ -170,68 +170,56 @@
   };
 
   /**
-   * 自动检查更新（静默，有更新时提示）
+   * 自动检查更新（启动时弹窗提示）
    */
   OTAModule.autoCheck = function () {
     var manifestUrl = OTAModule.getManifestUrl();
     if (!manifestUrl) return;
 
-    // 24小时内不重复检查
-    var lastCheck = OTAModule.getLastCheckTime();
-    if (lastCheck) {
-      var elapsed = Date.now() - new Date(lastCheck).getTime();
-      if (elapsed < 24 * 60 * 60 * 1000) return;
-    }
-
     OTAModule.checkForUpdate().then(function (update) {
       if (update) {
-        _showUpdateNotification(update);
+        _showUpdateModal(update);
       }
     });
   };
 
-  // ===== 显示更新通知 =====
-  function _showUpdateNotification(update) {
-    var container = document.createElement('div');
-    container.className = 'ota-update-banner';
-    container.innerHTML =
-      '<div class="ota-banner-content">' +
-        '<div class="ota-banner-text">' +
-          '<span class="ota-banner-version">发现新版本 v' + update.version + '</span>' +
-          (update.changelog ? '<span class="ota-banner-changelog">' + update.changelog + '</span>' : '') +
-        '</div>' +
-        '<div class="ota-banner-actions">' +
-          '<button class="btn btn-primary btn-small ota-btn-update">更新</button>' +
-          '<button class="btn btn-outline btn-small ota-btn-later">稍后</button>' +
-        '</div>' +
-      '</div>';
-
-    document.body.appendChild(container);
-
-    container.querySelector('.ota-btn-update').addEventListener('click', function () {
-      container.remove();
-      OTAModule.applyUpdate(update).then(function (success) {
-        if (success) {
-          if (window.UIModule && window.UIModule.showToast) {
-            window.UIModule.showToast('更新成功，即将重启...');
-          }
-          setTimeout(function () {
-            OTAModule.reloadApp();
-          }, 1500);
-        } else {
-          if (window.UIModule && window.UIModule.showToast) {
-            window.UIModule.showToast('更新失败，请手动下载新版本');
-          }
-          if (update.updateUrl) {
-            window.open(update.updateUrl, '_blank');
-          }
-        }
+  // ===== 显示更新弹窗（启动时） =====
+  function _showUpdateModal(update) {
+    var changelogHtml = '';
+    if (update.changelog) {
+      var items = update.changelog.split(/[;；\n]/);
+      changelogHtml = '<div style="margin-top:10px;text-align:left;font-size:13px;color:var(--text-secondary);line-height:1.8;">';
+      changelogHtml += '<div style="font-weight:600;color:var(--text);margin-bottom:4px;">更新内容：</div>';
+      items.forEach(function (item) {
+        var trimmed = item.trim();
+        if (trimmed) changelogHtml += '<div>· ' + trimmed + '</div>';
       });
-    });
+      changelogHtml += '</div>';
+    }
 
-    container.querySelector('.ota-btn-later').addEventListener('click', function () {
-      container.remove();
-    });
+    if (window.UIModule && window.UIModule.showModal) {
+      window.UIModule.showModal(
+        '发现新版本 v' + update.version,
+        '<div style="text-align:center;">' +
+          '<div style="font-size:36px;font-weight:700;color:var(--primary);">v' + update.version + '</div>' +
+          changelogHtml +
+        '</div>',
+        function () {
+          // 确认更新
+          OTAModule.applyUpdate(update).then(function (success) {
+            if (success) {
+              window.UIModule.showToast('更新成功，即将重启...');
+              setTimeout(function () {
+                OTAModule.reloadApp();
+              }, 1500);
+            } else {
+              window.UIModule.showToast('更新失败，请重试');
+            }
+          });
+        },
+        '立即更新'
+      );
+    }
   }
 
   // ===== 版本号比较 =====

@@ -1,6 +1,6 @@
 {
   "version": "2.2.0",
-  "changelog": "OTA热更新测试版本",
+  "changelog": "新增启动时OTA更新弹窗提示；优化文档导入解析；去除API Key配置；修复设置面板显示问题",
   "updateUrl": "",
   "files": {
     "index.html": "index.html",
