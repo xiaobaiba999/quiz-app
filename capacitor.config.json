@@ -5,5 +5,10 @@
   "server": {
     "androidScheme": "https",
     "allowNavigation": ["xiaobaiba999.github.io"]
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
   }
 }

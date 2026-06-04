@@ -9,62 +9,89 @@
   var UPDATE_CHECK_KEY = 'quiz_last_update_check';
   var CURRENT_VERSION = '2.3.0';
 
-  // 默认更新清单地址（GitHub Pages 部署后自动可用）
   var DEFAULT_MANIFEST_URL = 'https://xiaobaiba999.github.io/quiz-app/manifest-ota.json';
 
   /**
-   * 使用 XMLHttpRequest 发起 GET 请求（绕过 fetch 的 CORS 限制）
-   * XHR 在 Capacitor WebView 中对有 CORS 头的 HTTPS 资源可正常工作
+   * 跨域安全的 HTTP GET（获取 JSON）
+   * 当 CapacitorHttp 启用时，fetch 会被自动 patch 走原生 HTTP，无 CORS 限制
+   * 浏览器环境直接用 fetch（GitHub Pages 有 CORS 头）
    */
-  function _xhrGetJson(url) {
-    return new Promise(function (resolve, reject) {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', url, true);
-      xhr.setRequestHeader('Accept', 'application/json');
-      xhr.timeout = 15000;
-      xhr.onload = function () {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            resolve(JSON.parse(xhr.responseText));
-          } catch (e) {
-            reject(new Error('JSON解析失败'));
+  function _httpGetJson(url) {
+    // 优先使用 Capacitor 原生 HTTP 插件
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp) {
+      var httpPlugin = window.Capacitor.Plugins.CapacitorHttp;
+      if (httpPlugin.get) {
+        return httpPlugin.get({ url: url }).then(function (res) {
+          if (res.status < 200 || res.status >= 300) {
+            throw new Error('HTTP ' + res.status);
           }
-        } else {
-          reject(new Error('HTTP ' + xhr.status));
-        }
-      };
-      xhr.onerror = function () {
-        reject(new Error('网络请求失败'));
-      };
-      xhr.ontimeout = function () {
-        reject(new Error('请求超时'));
-      };
-      xhr.send();
+          var data = res.data;
+          if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch (e) {
+              throw new Error('JSON解析失败');
+            }
+          }
+          return data;
+        });
+      }
+      if (httpPlugin.request) {
+        return httpPlugin.request({
+          url: url,
+          method: 'GET'
+        }).then(function (res) {
+          if (res.status < 200 || res.status >= 300) {
+            throw new Error('HTTP ' + res.status);
+          }
+          var data = res.data;
+          if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch (e) {
+              throw new Error('JSON解析失败');
+            }
+          }
+          return data;
+        });
+      }
+    }
+
+    // 回退：标准 fetch（CapacitorHttp 启用后会被 patch 为原生 HTTP）
+    return fetch(url, { cache: 'no-cache' }).then(function (response) {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return response.json();
     });
   }
 
   /**
-   * 使用 XHR 获取文件内容（返回文本，用于缓存更新）
+   * 跨域安全的 HTTP GET（获取文本，用于缓存更新）
    */
-  function _xhrGetText(url) {
-    return new Promise(function (resolve, reject) {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', url, true);
-      xhr.timeout = 30000;
-      xhr.onload = function () {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(xhr.responseText);
-        } else {
-          reject(new Error('HTTP ' + xhr.status));
-        }
-      };
-      xhr.onerror = function () {
-        reject(new Error('网络请求失败'));
-      };
-      xhr.ontimeout = function () {
-        reject(new Error('请求超时'));
-      };
-      xhr.send();
+  function _httpGetText(url) {
+    // 优先使用 Capacitor 原生 HTTP 插件
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp) {
+      var httpPlugin = window.Capacitor.Plugins.CapacitorHttp;
+      if (httpPlugin.get) {
+        return httpPlugin.get({ url: url }).then(function (res) {
+          if (res.status < 200 || res.status >= 300) {
+            throw new Error('HTTP ' + res.status);
+          }
+          return typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+        });
+      }
+      if (httpPlugin.request) {
+        return httpPlugin.request({
+          url: url,
+          method: 'GET'
+        }).then(function (res) {
+          if (res.status < 200 || res.status >= 300) {
+            throw new Error('HTTP ' + res.status);
+          }
+          return typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+        });
+      }
+    }
+
+    // 回退：标准 fetch
+    return fetch(url, { cache: 'no-cache' }).then(function (response) {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return response.text();
     });
   }
 
@@ -103,7 +130,7 @@
     }
 
     var fullUrl = manifestUrl + '?t=' + Date.now();
-    return _xhrGetJson(fullUrl).then(function (manifest) {
+    return _httpGetJson(fullUrl).then(function (manifest) {
       localStorage.setItem(UPDATE_CHECK_KEY, new Date().toISOString());
 
       if (!manifest.version) return { _error: '清单缺少版本号' };
@@ -185,8 +212,7 @@
         }
         if (!fileUrl) return Promise.resolve();
 
-        // 用 XHR 下载文件内容，再写入缓存
-        return _xhrGetText(fileUrl + '?t=' + Date.now()).then(function (text) {
+        return _httpGetText(fileUrl + '?t=' + Date.now()).then(function (text) {
           var response = new Response(text, {
             status: 200,
             headers: { 'Content-Type': 'application/javascript' }
