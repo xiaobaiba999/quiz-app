@@ -24,17 +24,6 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Generate OTA manifest
-        run: |
-          cat > www/manifest-ota.json << 'EOF'
-          {
-            "version": "2.0.0",
-            "changelog": "新增文档智能导入、OTA热更新",
-            "updateUrl": "",
-            "files": {}
-          }
-          EOF
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
