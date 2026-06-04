@@ -1,0 +1,39 @@
+1. JavaScript中typeof null的结果是什么？
+A. "null"
+B. "undefined"
+C. "object"
+D. "string"
+答案：C
+解析：这是JavaScript的一个历史遗留bug，typeof null返回"object"
+
+2. 以下哪个方法可以阻止事件冒泡？
+A. event.preventDefault()
+B. event.stopPropagation()
+C. event.stopBubbling()
+D. event.cancelBubble()
+答案：B
+解析：stopPropagation()方法可以阻止事件继续冒泡，preventDefault()是阻止默认行为
+
+3. CSS中flex:1等同于以下哪个？
+A. flex: 1 1 0%
+B. flex: 1 1 auto
+C. flex: 0 1 auto
+D. flex: 1 0 auto
+答案：A
+解析：flex:1是flex-grow:1、flex-shrink:1、flex-basis:0%的简写
+
+4. HTTP状态码304表示什么？
+A. 请求成功
+B. 永久重定向
+C. 未修改（缓存有效）
+D. 临时重定向
+答案：C
+解析：304 Not Modified表示资源未修改，客户端可使用缓存的版本
+
+5. 以下哪个不是JavaScript的基本数据类型？
+A. Symbol
+B. BigInt
+C. Array
+D. undefined
+答案：C
+解析：Array是引用类型，JavaScript基本类型包括string、number、boolean、null、undefined、Symbol、BigInt

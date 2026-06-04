@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#FB7299">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.json">
+  <title>刷题助手</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 首页 -->
+  <div id="page-home" class="page active">
+    <header class="page-header">
+      <h1>刷题助手 <span class="app-version">2.0</span></h1>
+      <button class="theme-toggle" id="theme-toggle-home" title="切换护眼模式">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+    </header>
+    <main class="page-content">
+      <section class="home-stats">
+        <div class="stat-card">
+          <div class="stat-number" id="home-bank-count">0</div>
+          <div class="stat-label">题库数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="home-total-count">0</div>
+          <div class="stat-label">总题数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number stat-danger" id="home-wrong-count">0</div>
+          <div class="stat-label">错题数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="home-today-count">0</div>
+          <div class="stat-label">今日答题</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="home-today-rate">0%</div>
+          <div class="stat-label">今日正确率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="home-streak-days">0</div>
+          <div class="stat-label">连续学习</div>
+        </div>
+      </section>
+      <section class="home-charts">
+        <div class="chart-card">
+          <h3 class="chart-title">答题统计</h3>
+          <canvas id="home-pie-chart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3 class="chart-title">正确率趋势</h3>
+          <canvas id="home-trend-chart"></canvas>
+        </div>
+      </section>
+      <section class="home-detail-charts">
+        <div class="chart-card">
+          <h3 class="chart-title">各题型正确率</h3>
+          <canvas id="home-type-bar-chart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3 class="chart-title">知识点掌握度</h3>
+          <canvas id="home-tag-radar-chart"></canvas>
+        </div>
+      </section>
+      <section class="home-actions">
+        <button class="btn btn-primary btn-block" onclick="navigateTo('#practice')">开始练习</button>
+        <button class="btn btn-outline btn-block" onclick="navigateTo('#import')">导入题库</button>
+      </section>
+      <section class="home-recent">
+        <h2>最近练习</h2>
+        <div id="home-recent-list" class="recent-list">
+          <p class="empty-tip">暂无练习记录</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 题库管理 -->
+  <div id="page-bank-list" class="page">
+    <header class="page-header">
+      <h1>题库管理</h1>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="theme-toggle" id="theme-toggle-bank" title="切换护眼模式">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        </button>
+        <button class="btn btn-header-action" onclick="navigateTo('#import')">+ 导入</button>
+      </div>
+    </header>
+    <main class="page-content">
+      <div id="bank-list-container" class="card-list">
+        <p class="empty-tip">暂无题库，点击右上角导入</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- 题库详情 -->
+  <div id="page-bank-detail" class="page">
+    <header class="page-header">
+      <h1 id="bank-detail-title">题库详情</h1>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="theme-toggle" id="theme-toggle-bank-detail" title="切换护眼模式">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        </button>
+      </div>
+    </header>
+    <main class="page-content">
+      <div class="bank-detail-stats" id="bank-detail-stats"></div>
+      <div class="bank-detail-actions">
+        <button class="btn btn-primary" id="btn-add-question">添加题目</button>
+        <button class="btn btn-outline" id="btn-bank-detail-back">返回</button>
+      </div>
+      <div id="bank-detail-question-list" class="card-list">
+        <p class="empty-tip">暂无题目</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- 导入题库 -->
+  <div id="page-import" class="page">
+    <header class="page-header">
+      <h1>导入题库</h1>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-header-action" id="btn-ai-settings" title="AI 设置">AI</button>
+        <button class="theme-toggle" id="theme-toggle-import" title="切换护眼模式">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        </button>
+      </div>
+    </header>
+    <main class="page-content">
+      <div class="upload-area" id="upload-area">
+        <div class="upload-icon">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><path d="M24 6L14 18h6v14h8V18h6L24 6z" fill="currentColor"/><path d="M8 34v6h32v-6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <p>点击或拖拽文件到此处</p>
+        <p class="upload-hint">支持 TXT / Markdown / PDF / Word / PPT</p>
+        <input type="file" id="file-input" accept=".txt,.md,.markdown,.pdf,.doc,.docx,.ppt,.pptx" hidden>
+      </div>
+      <!-- AI 转换进度 -->
+      <div id="ai-convert-progress" style="display:none;">
+        <div class="ai-progress-card">
+          <div class="ai-progress-header">
+            <div class="ai-progress-spinner"></div>
+            <span class="ai-progress-title">AI 智能转换中</span>
+          </div>
+          <div class="ai-progress-text" id="ai-progress-text">正在解析文件...</div>
+          <div class="ai-progress-bar-container">
+            <div class="ai-progress-bar" id="ai-progress-bar"></div>
+          </div>
+          <button class="btn btn-outline btn-small" id="btn-cancel-ai" style="margin-top:12px;">取消</button>
+        </div>
+      </div>
+      <div id="import-preview" style="display:none;">
+        <div class="import-file-info" id="import-file-info"></div>
+        <div class="import-name-input">
+          <label for="bank-name-input">题库名称</label>
+          <input type="text" id="bank-name-input" placeholder="输入题库名称">
+        </div>
+        <div class="import-preview-stats" id="import-preview-stats"></div>
+        <button class="btn btn-primary btn-block" id="btn-confirm-import">确认导入</button>
+      </div>
+      <div class="import-format-info">
+        <h3>单选题格式</h3>
+        <pre class="format-example">1. 题目内容
+A. 选项A
+B. 选项B
+C. 选项C
+D. 选项D
+答案：A
+解析：这是解析内容</pre>
+        <h3>多选题格式</h3>
+        <pre class="format-example">1. 以下哪些是传输层协议？
+A. TCP
+B. IP
+C. UDP
+D. HTTP
+答案：ABC
+解析：TCP和UDP属于传输层协议
+
+2. 以下哪些是面向连接的？
+A. TCP
+B. UDP
+C. HTTP
+D. FTP
+答案：A,C,D
+标签：TCP,UDP,传输层</pre>
+        <h3>判断题格式</h3>
+        <pre class="format-example">1. TCP是面向连接的协议
+答案：对
+解析：TCP是面向连接的可靠传输协议
+
+2. UDP是面向连接的协议
+答案：错
+解析：UDP是无连接的不可靠传输协议</pre>
+        <h3>填空题格式</h3>
+        <pre class="format-example">1. HTTP默认端口号是___
+答案：80
+解析：HTTP默认端口80，HTTPS默认端口443
+
+2. IP地址由___位二进制数组成
+答案：32
+解析：IPv4地址由32位二进制数组成</pre>
+        <h3>简答题格式</h3>
+        <pre class="format-example">1. 简述TCP三次握手的过程
+答案：第一次握手：客户端发送SYN包；第二次握手：服务器返回SYN+ACK包；第三次握手：客户端发送ACK包确认连接建立
+标签：TCP,网络协议
+
+2. 简答DNS解析的过程
+答案：浏览器缓存→系统缓存→路由器缓存→ISP的DNS服务器→根域名服务器→顶级域名服务器→权威域名服务器，逐级查询直到获得IP地址</pre>
+        <h3>标签格式</h3>
+        <pre class="format-example">1. 题目内容
+A. 选项A
+B. 选项B
+C. 选项C
+D. 选项D
+答案：A
+标签：TCP,传输层
+解析：标签支持逗号或顿号分隔
+
+1. 另一道题目
+A. 选项A
+B. 选项B
+答案：B
+分类：网络基础</pre>
+        <h3>Markdown 格式</h3>
+        <pre class="format-example">## 1. 题目内容
+- A. 选项A
+- B. 选项B
+- C. 选项C
+- D. 选项D
+
+**答案：A**
+**解析：这是解析内容**
+**标签：TCP,传输层**</pre>
+      </div>
+    </main>
+  </div>
+
+  <!-- 练习 -->
+  <div id="page-practice" class="page">
+    <header class="page-header">
+      <h1>练习 <span id="practice-bank-name" class="practice-bank-name"></span></h1>
+      <div class="practice-header-actions">
+        <span class="timer-display" id="timer-display">00:00</span>
+        <button class="btn-header-action" id="btn-answer-sheet" title="答题卡">答题卡</button>
+        <button class="theme-toggle" id="theme-toggle-practice" title="切换护眼模式">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        </button>
+      </div>
+    </header>
+    <main class="page-content">
+      <div class="practice-progress">
+        <div class="progress-bar">
+          <div class="progress-fill" id="practice-progress-fill"></div>
+        </div>
+        <div class="progress-text" id="practice-progress-text">0 / 0</div>
+      </div>
+      <div class="question-card" id="question-card">
+        <div class="question-header">
+          <div class="question-number" id="question-number">第 1 题</div>
+          <div class="question-header-actions">
+            <button class="collect-btn" id="btn-collect" title="收藏">☆</button>
+            <button class="note-btn" id="btn-note" title="笔记">
+              <span class="note-icon">📝</span>
+              <span class="note-indicator" id="note-indicator" style="display:none;"></span>
+            </button>
+          </div>
+        </div>
+        <div class="question-text" id="question-text">请选择题库开始练习</div>
+        <div class="options-list" id="options-list">
+        </div>
+        <div class="question-explanation" id="question-explanation" style="display:none;">
+        </div>
+      </div>
+      <div class="practice-actions">
+        <button class="btn btn-outline" id="btn-prev" disabled>上一题</button>
+        <button class="btn btn-primary" id="btn-next">下一题</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- 练习结果 -->
+  <div id="page-result" class="page">
+    <header class="page-header">
+      <h1>练习结果</h1>
+      <button class="theme-toggle" id="theme-toggle-result" title="切换护眼模式">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+    </header>
+    <main class="page-content">
+      <div class="result-main">
+        <div class="result-accuracy" id="result-accuracy">0%</div>
+        <div class="result-label">正确率</div>
+      </div>
+      <div class="result-stats">
+        <div class="result-stat-item">
+          <span class="result-stat-value" id="result-total">0</span>
+          <span class="result-stat-label">总题数</span>
+        </div>
+        <div class="result-stat-item">
+          <span class="result-stat-value correct" id="result-correct">0</span>
+          <span class="result-stat-label">正确</span>
+        </div>
+        <div class="result-stat-item">
+          <span class="result-stat-value wrong" id="result-wrong">0</span>
+          <span class="result-stat-label">错误</span>
+        </div>
+      </div>
+      <section class="result-charts">
+        <div class="chart-card">
+          <h3 class="chart-title">本次结果</h3>
+          <canvas id="result-pie-chart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3 class="chart-title">历史正确率趋势</h3>
+          <canvas id="result-trend-chart"></canvas>
+        </div>
+      </section>
+      <div class="result-actions">
+        <button class="btn btn-primary btn-block" onclick="navigateTo('#wrong')">查看错题</button>
+        <button class="btn btn-outline btn-block" onclick="navigateTo('#home')">返回首页</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- 错题回顾 -->
+  <div id="page-wrong" class="page">
+    <header class="page-header">
+      <h1>错题本</h1>
+      <button class="theme-toggle" id="theme-toggle-wrong" title="切换护眼模式">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+    </header>
+    <main class="page-content">
+      <div id="wrong-list-container" class="card-list">
+        <p class="empty-tip">暂无错题，继续保持！</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- 收藏 -->
+  <div id="page-collection" class="page">
+    <header class="page-header">
+      <h1>收藏</h1>
+      <button class="theme-toggle" id="theme-toggle-collection" title="切换护眼模式">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+    </header>
+    <main class="page-content">
+      <div class="collection-filter">
+        <select id="collection-bank-filter" class="collection-select">
+          <option value="">全部题库</option>
+        </select>
+      </div>
+      <div id="collection-list-container" class="card-list">
+        <p class="empty-tip">暂无收藏题目</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- 底部导航栏 -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <a class="nav-item active" href="#home" data-page="home">
+      <span class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      </span>
+      <span class="nav-label">首页</span>
+    </a>
+    <a class="nav-item" href="#bank-list" data-page="bank-list">
+      <span class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+      </span>
+      <span class="nav-label">题库</span>
+    </a>
+    <a class="nav-item" href="#practice" data-page="practice">
+      <span class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+      </span>
+      <span class="nav-label">练习</span>
+    </a>
+    <a class="nav-item" href="#collection" data-page="collection">
+      <span class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+      </span>
+      <span class="nav-label">收藏</span>
+    </a>
+    <a class="nav-item" href="#wrong" data-page="wrong">
+      <span class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </span>
+      <span class="nav-label">错题</span>
+    </a>
+  </nav>
+
+  <!-- 答题卡面板 -->
+  <div class="answer-sheet-overlay" id="answer-sheet-overlay" style="display:none;">
+    <div class="answer-sheet-panel" id="answer-sheet-panel">
+      <div class="answer-sheet-header">
+        <span class="answer-sheet-title">答题卡</span>
+        <button class="answer-sheet-close" id="answer-sheet-close">&times;</button>
+      </div>
+      <div class="answer-sheet-legend">
+        <span class="legend-item"><span class="legend-dot legend-current"></span>当前</span>
+        <span class="legend-item"><span class="legend-dot legend-correct"></span>正确</span>
+        <span class="legend-item"><span class="legend-dot legend-wrong"></span>错误</span>
+        <span class="legend-item"><span class="legend-dot legend-unanswered"></span>未答</span>
+      </div>
+      <div class="answer-sheet-grid" id="answer-sheet-grid">
+      </div>
+    </div>
+  </div>
+
+  <!-- 笔记弹窗 -->
+  <div class="note-modal-overlay" id="note-modal-overlay" style="display:none;">
+    <div class="note-modal" id="note-modal">
+      <div class="note-modal-header">
+        <span class="note-modal-title">笔记</span>
+        <button class="note-modal-close" id="note-modal-close">&times;</button>
+      </div>
+      <textarea class="note-textarea" id="note-textarea" placeholder="在此输入笔记..." rows="6"></textarea>
+      <div class="note-modal-actions">
+        <button class="btn btn-outline" id="note-modal-cancel">取消</button>
+        <button class="btn btn-primary" id="note-modal-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 加载状态遮罩 -->
+  <div class="loading-overlay" id="loading-overlay" style="display:none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loading-text">加载中...</div>
+  </div>
+
+  <!-- AI 设置弹窗 -->
+  <div class="ai-settings-overlay" id="ai-settings-overlay" style="display:none;">
+    <div class="ai-settings-panel">
+      <div class="ai-settings-header">
+        <span class="ai-settings-title">AI 智能设置</span>
+        <button class="ai-settings-close" id="ai-settings-close">&times;</button>
+      </div>
+      <div class="ai-settings-body">
+        <div class="ai-settings-section">
+          <div class="ai-settings-label">DeepSeek API Key <span style="font-size:11px;font-weight:400;color:var(--text-hint);">（可选）</span></div>
+          <div class="ai-settings-desc">PDF/Word/PPT 文件可直接解析导入。配置 API Key 后，解析失败时可使用 AI 智能转换并自动添加详细解析</div>
+          <div class="ai-settings-input-group">
+            <input type="password" id="ai-api-key-input" class="ai-settings-input" placeholder="sk-xxxxxxxxxxxxxxxx">
+            <button class="btn btn-primary-small" id="btn-test-api-key">验证</button>
+          </div>
+          <div class="ai-settings-status" id="ai-api-key-status"></div>
+          <div class="ai-settings-hint">
+            <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">获取 API Key</a>
+          </div>
+        </div>
+        <div class="ai-settings-section">
+          <div class="ai-settings-label">OTA 更新地址</div>
+          <div class="ai-settings-desc">配置更新清单 URL，实现应用热更新</div>
+          <input type="url" id="ota-manifest-url" class="ai-settings-input" placeholder="https://xiaobaiba999.github.io/quiz-app/manifest-ota.json">
+          <div class="ai-settings-actions-row">
+            <button class="btn btn-outline btn-small" id="btn-check-update">检查更新</button>
+            <span class="ai-settings-version">当前版本 v2.0.0</span>
+          </div>
+          <div class="ai-settings-status" id="ota-update-status"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 脚本引入 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="db.js"></script>
+  <script src="router.js"></script>
+  <script src="file-parser.js"></script>
+  <script src="ai.js"></script>
+  <script src="ota.js"></script>
+  <script src="import.js"></script>
+  <script src="theme.js"></script>
+  <script src="ui.js"></script>
+  <script src="stats.js"></script>
+  <script src="practice.js"></script>
+  <script src="edit.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
