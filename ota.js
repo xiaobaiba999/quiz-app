@@ -156,6 +156,7 @@
     var completedFiles = 0;
     var failedFiles = 0;
     var _toastTimer = null;
+    var downloadedTexts = {}; // 先暂存下载内容，验证通过后再写入缓存
 
     function _showProgress() {
       if (_toastTimer) clearTimeout(_toastTimer);
@@ -166,62 +167,63 @@
 
     _showProgress();
 
-    return caches.open(OTA_CACHE).then(function (cache) {
-      var promises = fileKeys.map(function (filePath) {
-        var fileUrl = updateInfo.files[filePath];
-        if (!fileUrl) return Promise.resolve();
+    // 第一步：下载所有文件内容（暂存，不写入缓存）
+    var downloadPromises = fileKeys.map(function (filePath) {
+      var fileUrl = updateInfo.files[filePath];
+      if (!fileUrl) return Promise.resolve();
 
-        var downloadUrls = fileUrl.startsWith('http')
-          ? [fileUrl]
-          : FILE_BASE_URLS.map(function (base) { return base + fileUrl; });
+      var downloadUrls = fileUrl.startsWith('http')
+        ? [fileUrl]
+        : FILE_BASE_URLS.map(function (base) { return base + fileUrl; });
 
-        return _httpGetTextWithFallback(downloadUrls).then(function (text) {
+      return _httpGetTextWithFallback(downloadUrls).then(function (text) {
+        completedFiles++;
+        _showProgress();
+        downloadedTexts[filePath] = text;
+      }).catch(function () {
+        failedFiles++;
+        completedFiles++;
+        _showProgress();
+      });
+    });
+
+    return Promise.all(downloadPromises).then(function () {
+      // 第二步：验证下载的ota.js是否包含新版本号
+      var otaText = downloadedTexts['ota.js'];
+      if (!otaText) {
+        window.UIModule && window.UIModule.showToast('下载失败，请重试', 3000);
+        return false;
+      }
+
+      var match = otaText.match(/CURRENT_VERSION\s*=\s*['"]([^'"]+)['"]/);
+      var verified = match && match[1] === updateInfo.version;
+
+      if (!verified) {
+        // CDN缓存未更新，下载到的是旧版本代码，不写入缓存
+        _showCDNCacheWarning(updateInfo.version);
+        return false;
+      }
+
+      // 第三步：验证通过，写入OTA缓存
+      return caches.open(OTA_CACHE).then(function (cache) {
+        var writePromises = Object.keys(downloadedTexts).map(function (filePath) {
+          var text = downloadedTexts[filePath];
           var ct = 'text/plain';
           if (filePath.endsWith('.js')) ct = 'application/javascript';
           else if (filePath.endsWith('.css')) ct = 'text/css';
           else if (filePath.endsWith('.html')) ct = 'text/html';
           else if (filePath.endsWith('.json')) ct = 'application/json';
 
-          completedFiles++;
-          _showProgress();
           return cache.put(new Request('/' + filePath), new Response(text, { status: 200, headers: { 'Content-Type': ct } }));
-        }).catch(function () {
-          failedFiles++;
-          completedFiles++;
-          _showProgress();
         });
-      });
 
-      return Promise.all(promises).then(function () {
-        localStorage.setItem(VERSION_KEY, updateInfo.version);
-
-        // 验证下载的文件是否包含新版本号（检测CDN缓存是否已更新）
-        return _verifyOTAVersion(cache, updateInfo.version).then(function (verified) {
+        return Promise.all(writePromises).then(function () {
+          localStorage.setItem(VERSION_KEY, updateInfo.version);
           if (failedFiles > 0) {
             window.UIModule && window.UIModule.showToast('更新完成（' + failedFiles + '个文件下载失败）', 3000);
           }
-          if (!verified) {
-            // CDN缓存未更新，提示用户
-            _showCDNCacheWarning(updateInfo.version);
-          }
           return failedFiles === 0;
         });
-      });
-    }).catch(function () { return false; });
-  }
-
-  /**
-   * 验证OTA下载的文件是否包含新版本号
-   * 从OTA缓存中读取ota.js，检查CURRENT_VERSION是否匹配
-   */
-  function _verifyOTAVersion(cache, targetVersion) {
-    return cache.match(new Request('/ota.js')).then(function (response) {
-      if (!response) return false;
-      return response.text().then(function (text) {
-        // 检查ota.js中是否包含新版本号
-        var match = text.match(/CURRENT_VERSION\s*=\s*['"]([^'"]+)['"]/);
-        if (match && match[1] === targetVersion) return true;
-        return false;
       });
     }).catch(function () { return false; });
   }
