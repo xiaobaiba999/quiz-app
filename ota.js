@@ -9,12 +9,56 @@
   var UPDATE_CHECK_KEY = 'quiz_last_update_check';
   var CURRENT_VERSION = '2.3.0';
 
-  var DEFAULT_MANIFEST_URL = 'https://xiaobaiba999.github.io/quiz-app/manifest-ota.json';
+  // OTA 清单地址：优先 jsDelivr（国内可访问），回退 GitHub Pages
+  var MANIFEST_URLS = [
+    'https://cdn.jsdelivr.net/gh/xiaobaiba999/quiz-app@main/www/manifest-ota.json',
+    'https://xiaobaiba999.github.io/quiz-app/manifest-ota.json'
+  ];
+
+  // 文件下载基础路径：优先 jsDelivr，回退 GitHub Pages
+  var FILE_BASE_URLS = [
+    'https://cdn.jsdelivr.net/gh/xiaobaiba999/quiz-app@main/www/',
+    'https://xiaobaiba999.github.io/quiz-app/'
+  ];
 
   /**
-   * 跨域安全的 HTTP GET（获取 JSON）
-   * 当 CapacitorHttp 启用时，fetch 会被自动 patch 走原生 HTTP，无 CORS 限制
-   * 浏览器环境直接用 fetch（GitHub Pages 有 CORS 头）
+   * 带自动回退的 HTTP GET JSON
+   * 依次尝试多个 URL，第一个成功即返回
+   */
+  function _httpGetJsonWithFallback(urls) {
+    if (!urls || urls.length === 0) {
+      return Promise.reject(new Error('无可用地址'));
+    }
+
+    var url = urls[0] + '?t=' + Date.now();
+    return _httpGetJson(url).catch(function () {
+      // 第一个 URL 失败，尝试下一个
+      if (urls.length > 1) {
+        return _httpGetJsonWithFallback(urls.slice(1));
+      }
+      throw new Error('所有地址均无法访问');
+    });
+  }
+
+  /**
+   * 带自动回退的 HTTP GET Text
+   */
+  function _httpGetTextWithFallback(urls) {
+    if (!urls || urls.length === 0) {
+      return Promise.reject(new Error('无可用地址'));
+    }
+
+    var url = urls[0] + '?t=' + Date.now();
+    return _httpGetText(url).catch(function () {
+      if (urls.length > 1) {
+        return _httpGetTextWithFallback(urls.slice(1));
+      }
+      throw new Error('下载失败');
+    });
+  }
+
+  /**
+   * HTTP GET JSON（单 URL）
    */
   function _httpGetJson(url) {
     // 优先使用 Capacitor 原生 HTTP 插件
@@ -22,38 +66,17 @@
       var httpPlugin = window.Capacitor.Plugins.CapacitorHttp;
       if (httpPlugin.get) {
         return httpPlugin.get({ url: url }).then(function (res) {
-          if (res.status < 200 || res.status >= 300) {
-            throw new Error('HTTP ' + res.status);
-          }
+          if (res.status < 200 || res.status >= 300) throw new Error('HTTP ' + res.status);
           var data = res.data;
           if (typeof data === 'string') {
-            try { data = JSON.parse(data); } catch (e) {
-              throw new Error('JSON解析失败');
-            }
-          }
-          return data;
-        });
-      }
-      if (httpPlugin.request) {
-        return httpPlugin.request({
-          url: url,
-          method: 'GET'
-        }).then(function (res) {
-          if (res.status < 200 || res.status >= 300) {
-            throw new Error('HTTP ' + res.status);
-          }
-          var data = res.data;
-          if (typeof data === 'string') {
-            try { data = JSON.parse(data); } catch (e) {
-              throw new Error('JSON解析失败');
-            }
+            try { data = JSON.parse(data); } catch (e) { throw new Error('JSON解析失败'); }
           }
           return data;
         });
       }
     }
 
-    // 回退：标准 fetch（CapacitorHttp 启用后会被 patch 为原生 HTTP）
+    // 回退：fetch（CapacitorHttp 启用后会被 patch 为原生 HTTP）
     return fetch(url, { cache: 'no-cache' }).then(function (response) {
       if (!response.ok) throw new Error('HTTP ' + response.status);
       return response.json();
@@ -61,34 +84,19 @@
   }
 
   /**
-   * 跨域安全的 HTTP GET（获取文本，用于缓存更新）
+   * HTTP GET Text（单 URL）
    */
   function _httpGetText(url) {
-    // 优先使用 Capacitor 原生 HTTP 插件
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp) {
       var httpPlugin = window.Capacitor.Plugins.CapacitorHttp;
       if (httpPlugin.get) {
         return httpPlugin.get({ url: url }).then(function (res) {
-          if (res.status < 200 || res.status >= 300) {
-            throw new Error('HTTP ' + res.status);
-          }
-          return typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
-        });
-      }
-      if (httpPlugin.request) {
-        return httpPlugin.request({
-          url: url,
-          method: 'GET'
-        }).then(function (res) {
-          if (res.status < 200 || res.status >= 300) {
-            throw new Error('HTTP ' + res.status);
-          }
+          if (res.status < 200 || res.status >= 300) throw new Error('HTTP ' + res.status);
           return typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
         });
       }
     }
 
-    // 回退：标准 fetch
     return fetch(url, { cache: 'no-cache' }).then(function (response) {
       if (!response.ok) throw new Error('HTTP ' + response.status);
       return response.text();
@@ -103,10 +111,10 @@
   };
 
   /**
-   * 获取配置的清单地址
+   * 获取配置的清单地址（用户自定义优先）
    */
   OTAModule.getManifestUrl = function () {
-    return localStorage.getItem('quiz_ota_manifest_url') || DEFAULT_MANIFEST_URL;
+    return localStorage.getItem('quiz_ota_manifest_url') || MANIFEST_URLS[0];
   };
 
   /**
@@ -121,16 +129,19 @@
   };
 
   /**
-   * 检查更新
+   * 检查更新（自动回退多个 CDN 地址）
    */
   OTAModule.checkForUpdate = function () {
-    var manifestUrl = OTAModule.getManifestUrl();
-    if (!manifestUrl) {
-      return Promise.resolve(null);
+    // 构建尝试的 URL 列表
+    var customUrl = localStorage.getItem('quiz_ota_manifest_url');
+    var urls;
+    if (customUrl) {
+      urls = [customUrl];
+    } else {
+      urls = MANIFEST_URLS.slice();
     }
 
-    var fullUrl = manifestUrl + '?t=' + Date.now();
-    return _httpGetJson(fullUrl).then(function (manifest) {
+    return _httpGetJsonWithFallback(urls).then(function (manifest) {
       localStorage.setItem(UPDATE_CHECK_KEY, new Date().toISOString());
 
       if (!manifest.version) return { _error: '清单缺少版本号' };
@@ -161,7 +172,7 @@
       return Promise.reject(new Error('无效的更新信息'));
     }
 
-    // 方式1：通过 Service Worker 更新
+    // 通过 Service Worker 更新
     if (updateInfo.updateUrl && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
       return new Promise(function (resolve) {
         var messageChannel = new MessageChannel();
@@ -185,7 +196,7 @@
       });
     }
 
-    // 方式2：直接更新缓存
+    // 直接更新缓存
     if (updateInfo.files && Object.keys(updateInfo.files).length > 0) {
       return _directUpdateCache(updateInfo);
     }
@@ -194,28 +205,36 @@
   };
 
   /**
-   * 直接更新缓存中的文件
+   * 直接更新缓存中的文件（使用 jsDelivr CDN 下载）
    */
   function _directUpdateCache(updateInfo) {
     if (!('caches' in window)) {
       return Promise.resolve(true);
     }
 
-    var baseUrl = OTAModule.getManifestUrl();
-    baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
-
     return caches.open(CACHE_NAME).then(function (cache) {
       var promises = Object.keys(updateInfo.files).map(function (filePath) {
         var fileUrl = updateInfo.files[filePath];
-        if (fileUrl && !fileUrl.startsWith('http')) {
-          fileUrl = baseUrl + fileUrl;
-        }
         if (!fileUrl) return Promise.resolve();
 
-        return _httpGetText(fileUrl + '?t=' + Date.now()).then(function (text) {
+        // 构建多个下载地址（jsDelivr 优先，GitHub Pages 回退）
+        var downloadUrls;
+        if (fileUrl.startsWith('http')) {
+          downloadUrls = [fileUrl];
+        } else {
+          downloadUrls = FILE_BASE_URLS.map(function (base) { return base + fileUrl; });
+        }
+
+        return _httpGetTextWithFallback(downloadUrls).then(function (text) {
+          var contentType = 'text/plain';
+          if (filePath.endsWith('.js')) contentType = 'application/javascript';
+          else if (filePath.endsWith('.css')) contentType = 'text/css';
+          else if (filePath.endsWith('.html')) contentType = 'text/html';
+          else if (filePath.endsWith('.json')) contentType = 'application/json';
+
           var response = new Response(text, {
             status: 200,
-            headers: { 'Content-Type': 'application/javascript' }
+            headers: { 'Content-Type': contentType }
           });
           return cache.put(new Request('/' + filePath), response);
         }).catch(function () {
@@ -252,9 +271,6 @@
    * 自动检查更新（启动时弹窗提示）
    */
   OTAModule.autoCheck = function () {
-    var manifestUrl = OTAModule.getManifestUrl();
-    if (!manifestUrl) return;
-
     OTAModule.checkForUpdate().then(function (update) {
       if (update && update.version) {
         _showUpdateModal(update);
