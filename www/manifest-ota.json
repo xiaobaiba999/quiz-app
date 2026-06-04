@@ -1,6 +1,6 @@
 {
-  "version": "2.1.0",
-  "changelog": "去除API Key配置，优化文档导入解析",
+  "version": "2.2.0",
+  "changelog": "OTA热更新测试版本",
   "updateUrl": "",
   "files": {
     "index.html": "index.html",
@@ -9,6 +9,15 @@
     "manifest.json": "manifest.json",
     "file-parser.js": "file-parser.js",
     "import.js": "import.js",
-    "service-worker.js": "service-worker.js"
+    "service-worker.js": "service-worker.js",
+    "style.css": "style.css",
+    "db.js": "db.js",
+    "router.js": "router.js",
+    "theme.js": "theme.js",
+    "ui.js": "ui.js",
+    "stats.js": "stats.js",
+    "practice.js": "practice.js",
+    "edit.js": "edit.js",
+    "ai.js": "ai.js"
   }
 }
