@@ -1,11 +1,12 @@
 // 刷题助手 - Service Worker
-// 网络优先策略 + OTA 热更新支持
+// OTA 热更新支持：缓存优先 + 网络回退
 
 var APP_VERSION = '2.4.0';
 var CACHE_NAME = 'quiz-app-v' + APP_VERSION.replace(/\./g, '');
+var OTA_CACHE = 'quiz-app-ota';
 
 // 需要缓存的文件列表
-const CACHE_FILES = [
+var CACHE_FILES = [
   '/',
   '/index.html',
   '/style.css',
@@ -13,8 +14,6 @@ const CACHE_FILES = [
   '/db.js',
   '/router.js',
   '/import.js',
-  '/file-parser.js',
-  '/ai.js',
   '/ota.js',
   '/theme.js',
   '/ui.js',
@@ -25,112 +24,86 @@ const CACHE_FILES = [
 ];
 
 // 安装事件：预缓存核心文件
-self.addEventListener('install', (event) => {
+self.addEventListener('install', function (event) {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] 预缓存核心文件');
+    caches.open(CACHE_NAME).then(function (cache) {
       return cache.addAll(CACHE_FILES);
     })
   );
   self.skipWaiting();
 });
 
-// 激活事件：清理旧缓存
-self.addEventListener('activate', (event) => {
+// 激活事件：清理旧缓存（保留 OTA 缓存）
+self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then(function (names) {
       return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => {
-            console.log('[SW] 删除旧缓存:', name);
-            return caches.delete(name);
-          })
+        names.filter(function (name) {
+          return name !== CACHE_NAME && name !== OTA_CACHE;
+        }).map(function (name) {
+          return caches.delete(name);
+        })
       );
     })
   );
   self.clients.claim();
 });
 
-// 请求拦截：网络优先策略（仅拦截同源请求）
-self.addEventListener('fetch', (event) => {
-  // 跳过非 GET 请求
+// 请求拦截：OTA 缓存优先 → 网络 → 应用缓存
+self.addEventListener('fetch', function (event) {
   if (event.request.method !== 'GET') return;
-
-  // 跳过跨域请求（如 GitHub Pages OTA 清单），避免 CORS 问题
   if (!event.request.url.startsWith(self.location.origin)) return;
 
   event.respondWith(
-    fetch(event.request).then((networkResponse) => {
-      if (networkResponse && networkResponse.status === 200) {
-        const responseClone = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
-        });
-      }
-      return networkResponse;
-    }).catch(() => {
-      return caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) return cachedResponse;
-        if (event.request.headers.get('accept').includes('text/html')) {
-          return caches.match('/index.html');
+    // 1. 先查 OTA 缓存（OTA 更新的文件在这里）
+    caches.open(OTA_CACHE).then(function (otaCache) {
+      return otaCache.match(event.request).then(function (otaResponse) {
+        if (otaResponse) {
+          return otaResponse;
         }
+        // 2. OTA 缓存没有，走网络
+        return fetch(event.request).then(function (networkResponse) {
+          if (networkResponse && networkResponse.status === 200) {
+            var clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then(function (cache) {
+              cache.put(event.request, clone);
+            });
+          }
+          return networkResponse;
+        }).catch(function () {
+          // 3. 网络失败，查应用缓存
+          return caches.match(event.request).then(function (cachedResponse) {
+            if (cachedResponse) return cachedResponse;
+            if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html')) {
+              return caches.match('/index.html');
+            }
+          });
+        });
       });
     })
   );
 });
 
 // OTA 更新消息处理
-self.addEventListener('message', (event) => {
+self.addEventListener('message', function (event) {
   if (event.data && event.data.type === 'APPLY_UPDATE') {
-    var updateUrl = event.data.updateUrl;
     var version = event.data.version;
     var port = event.ports[0];
 
-    if (!updateUrl) {
+    // 从 OTA 缓存中读取已下载的文件并确认
+    caches.open(OTA_CACHE).then(function (otaCache) {
+      return otaCache.keys();
+    }).then(function (keys) {
+      if (keys.length > 0) {
+        if (port) port.postMessage({ type: 'UPDATE_APPLIED', version: version });
+      } else {
+        if (port) port.postMessage({ type: 'UPDATE_FAILED' });
+      }
+    }).catch(function () {
       if (port) port.postMessage({ type: 'UPDATE_FAILED' });
-      return;
-    }
-
-    // 下载更新包
-    fetch(updateUrl + '?t=' + Date.now())
-      .then((response) => {
-        if (!response.ok) throw new Error('下载更新包失败');
-        return response.json();
-      })
-      .then((updateData) => {
-        if (!updateData.files) throw new Error('更新包格式错误');
-
-        // 更新缓存中的文件
-        var cachePromise = caches.open(CACHE_NAME).then((cache) => {
-          var promises = Object.keys(updateData.files).map((filePath) => {
-            var fileUrl = updateData.files[filePath];
-            return fetch(fileUrl).then((fileResponse) => {
-              if (fileResponse.ok) {
-                return cache.put(new Request('/' + filePath), fileResponse);
-              }
-            }).catch(() => {
-              // 单个文件更新失败不中断整体流程
-            });
-          });
-          return Promise.all(promises);
-        });
-
-        return cachePromise.then(() => {
-          // 更新版本号
-          if (version) {
-            localStorage.setItem('quiz_app_version', version);
-          }
-          if (port) port.postMessage({ type: 'UPDATE_APPLIED', version: version });
-        });
-      })
-      .catch((err) => {
-        console.error('[SW] OTA 更新失败:', err);
-        if (port) port.postMessage({ type: 'UPDATE_FAILED', error: err.message });
-      });
+    });
   }
 
-  // 强制更新缓存（跳过等待）
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }

@@ -142,13 +142,15 @@
     return Promise.resolve(true);
   };
 
+  var OTA_CACHE = 'quiz-app-ota';
+
   /**
-   * 直接更新缓存
+   * 直接更新缓存（写入 OTA 专用缓存，SW 会优先读取）
    */
   function _directUpdateCache(updateInfo) {
     if (!('caches' in window)) return Promise.resolve(true);
 
-    return caches.open(CACHE_NAME).then(function (cache) {
+    return caches.open(OTA_CACHE).then(function (cache) {
       var promises = Object.keys(updateInfo.files).map(function (filePath) {
         var fileUrl = updateInfo.files[filePath];
         if (!fileUrl) return Promise.resolve();
@@ -177,11 +179,21 @@
 
   var CACHE_NAME = 'quiz-app-v' + CURRENT_VERSION.replace(/\./g, '');
 
-  OTAModule.reloadApp = function () { window.location.reload(true); };
+  OTAModule.reloadApp = function () {
+    // Capacitor WebView 中 location.href 比 reload() 更可靠
+    window.location.href = window.location.origin + window.location.pathname;
+  };
 
   OTAModule.getLastCheckTime = function () { return localStorage.getItem(UPDATE_CHECK_KEY) || ''; };
 
   OTAModule.autoCheck = function () {
+    // 更新后 5 分钟内不再弹窗（防止重复弹窗）
+    var lastCheck = localStorage.getItem(UPDATE_CHECK_KEY);
+    if (lastCheck) {
+      var elapsed = Date.now() - new Date(lastCheck).getTime();
+      if (elapsed < 5 * 60 * 1000) return;
+    }
+
     OTAModule.checkForUpdate().then(function (update) {
       if (update && update.version) _showUpdateModal(update);
     });
