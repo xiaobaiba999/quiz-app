@@ -1,6 +1,14 @@
 {
-  "version": "2.0.0",
-  "changelog": "新增文档智能导入、OTA热更新",
+  "version": "2.1.0",
+  "changelog": "去除API Key配置，优化文档导入解析",
   "updateUrl": "",
-  "files": {}
+  "files": {
+    "index.html": "index.html",
+    "app.js": "app.js",
+    "ota.js": "ota.js",
+    "manifest.json": "manifest.json",
+    "file-parser.js": "file-parser.js",
+    "import.js": "import.js",
+    "service-worker.js": "service-worker.js"
+  }
 }

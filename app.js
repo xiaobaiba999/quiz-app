@@ -279,41 +279,31 @@
     });
   };
 
-  // ===== AI 设置事件绑定 =====
+  // ===== 设置事件绑定 =====
   function bindAISettingsEvents() {
     var btnAISettings = document.getElementById('btn-ai-settings');
     var overlay = document.getElementById('ai-settings-overlay');
     var btnClose = document.getElementById('ai-settings-close');
-    var apiKeyInput = document.getElementById('ai-api-key-input');
-    var btnTestKey = document.getElementById('btn-test-api-key');
-    var keyStatus = document.getElementById('ai-api-key-status');
     var otaUrlInput = document.getElementById('ota-manifest-url');
     var btnCheckUpdate = document.getElementById('btn-check-update');
     var otaStatus = document.getElementById('ota-update-status');
     var btnCancelAI = document.getElementById('btn-cancel-ai');
 
-    // 打开 AI 设置
+    // 打开设置
     if (btnAISettings) {
       btnAISettings.addEventListener('click', function () {
         if (overlay) {
           overlay.style.display = '';
-          // 填充当前值
-          if (apiKeyInput) apiKeyInput.value = window.AIModule ? window.AIModule.getAPIKey() : '';
           if (otaUrlInput) otaUrlInput.value = window.OTAModule ? window.OTAModule.getManifestUrl() : '';
-          if (keyStatus) keyStatus.textContent = '';
           if (otaStatus) otaStatus.textContent = '';
         }
       });
     }
 
-    // 关闭 AI 设置
+    // 关闭设置
     if (btnClose) {
       btnClose.addEventListener('click', function () {
         if (overlay) overlay.style.display = 'none';
-        // 保存设置
-        if (window.AIModule && apiKeyInput) {
-          window.AIModule.setAPIKey(apiKeyInput.value);
-        }
         if (window.OTAModule && otaUrlInput) {
           window.OTAModule.setManifestUrl(otaUrlInput.value);
         }
@@ -325,31 +315,8 @@
       overlay.addEventListener('click', function (e) {
         if (e.target === overlay) {
           overlay.style.display = 'none';
-          if (window.AIModule && apiKeyInput) window.AIModule.setAPIKey(apiKeyInput.value);
           if (window.OTAModule && otaUrlInput) window.OTAModule.setManifestUrl(otaUrlInput.value);
         }
-      });
-    }
-
-    // 验证 API Key
-    if (btnTestKey && apiKeyInput && keyStatus) {
-      btnTestKey.addEventListener('click', function () {
-        var key = apiKeyInput.value.trim();
-        if (!key) {
-          keyStatus.textContent = '请输入 API Key';
-          keyStatus.style.color = 'var(--danger)';
-          return;
-        }
-        keyStatus.textContent = '验证中...';
-        keyStatus.style.color = 'var(--text-hint)';
-        window.AIModule.testAPIKey(key).then(function () {
-          keyStatus.textContent = 'API Key 有效';
-          keyStatus.style.color = 'var(--success)';
-          window.AIModule.setAPIKey(key);
-        }).catch(function (err) {
-          keyStatus.textContent = '验证失败：' + err.message;
-          keyStatus.style.color = 'var(--danger)';
-        });
       });
     }
 
@@ -385,7 +352,7 @@
       });
     }
 
-    // 取消 AI 转换
+    // 取消文件转换
     if (btnCancelAI) {
       btnCancelAI.addEventListener('click', function () {
         _aiConvertAborted = true;
