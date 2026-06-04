@@ -1,8 +1,9 @@
 {
   "appId": "com.quiz.helper",
-  "appName": "刷题助手 2.0",
+  "appName": "刷题助手",
   "webDir": "www",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "allowNavigation": ["xiaobaiba999.github.io"]
   }
 }

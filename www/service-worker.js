@@ -52,10 +52,13 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// 请求拦截：网络优先策略
+// 请求拦截：网络优先策略（仅拦截同源请求）
 self.addEventListener('fetch', (event) => {
   // 跳过非 GET 请求
   if (event.request.method !== 'GET') return;
+
+  // 跳过跨域请求（如 GitHub Pages OTA 清单），避免 CORS 问题
+  if (!event.request.url.startsWith(self.location.origin)) return;
 
   event.respondWith(
     fetch(event.request).then((networkResponse) => {

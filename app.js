@@ -327,7 +327,16 @@
         otaStatus.textContent = '检查中...';
         otaStatus.style.color = 'var(--text-hint)';
         window.OTAModule.checkForUpdate().then(function (update) {
-          if (update) {
+          if (!update) {
+            otaStatus.textContent = '未配置更新地址';
+            otaStatus.style.color = 'var(--danger)';
+          } else if (update._error) {
+            otaStatus.textContent = '检查失败：' + update._error;
+            otaStatus.style.color = 'var(--danger)';
+          } else if (update._current) {
+            otaStatus.textContent = '已是最新版本 (远程 v' + update.remoteVersion + ')';
+            otaStatus.style.color = 'var(--success)';
+          } else {
             otaStatus.textContent = '发现新版本 v' + update.version;
             otaStatus.style.color = 'var(--primary)';
             window.OTAModule.applyUpdate(update).then(function (success) {
@@ -341,9 +350,6 @@
                 otaStatus.style.color = 'var(--danger)';
               }
             });
-          } else {
-            otaStatus.textContent = '已是最新版本';
-            otaStatus.style.color = 'var(--success)';
           }
         }).catch(function (err) {
           otaStatus.textContent = '检查失败：' + err.message;

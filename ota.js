@@ -39,7 +39,7 @@
 
   /**
    * 检查更新
-   * @returns {Promise<object|null>} 更新信息，null 表示无更新
+   * @returns {Promise<object|null>} 更新信息，null 表示无更新或当前已是最新
    */
   OTAModule.checkForUpdate = function () {
     var manifestUrl = OTAModule.getManifestUrl();
@@ -48,17 +48,19 @@
     }
 
     return fetch(manifestUrl + '?t=' + Date.now(), {
-      cache: 'no-cache'
+      cache: 'no-cache',
+      mode: 'cors'
     }).then(function (response) {
-      if (!response.ok) throw new Error('获取更新清单失败');
+      if (!response.ok) throw new Error('HTTP ' + response.status);
       return response.json();
     }).then(function (manifest) {
       localStorage.setItem(UPDATE_CHECK_KEY, new Date().toISOString());
 
-      if (!manifest.version) return null;
+      if (!manifest.version) return { _error: '清单缺少版本号' };
 
       // 比较版本号
-      if (_compareVersions(manifest.version, CURRENT_VERSION) > 0) {
+      var cmp = _compareVersions(manifest.version, CURRENT_VERSION);
+      if (cmp > 0) {
         return {
           version: manifest.version,
           changelog: manifest.changelog || '',
@@ -68,10 +70,11 @@
         };
       }
 
-      return null;
+      // 返回远程版本信息供 UI 显示（但不是更新）
+      return { _current: true, remoteVersion: manifest.version };
     }).catch(function (err) {
       console.error('[OTA] 检查更新失败:', err);
-      return null;
+      return { _error: err.message || '网络错误' };
     });
   };
 
@@ -177,7 +180,7 @@
     if (!manifestUrl) return;
 
     OTAModule.checkForUpdate().then(function (update) {
-      if (update) {
+      if (update && update.version) {
         _showUpdateModal(update);
       }
     });
