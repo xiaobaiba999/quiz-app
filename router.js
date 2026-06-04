@@ -6,6 +6,7 @@
  * value: 页面容器的 id 前缀（page-xxx）
  */
 const ROUTE_MAP = {
+  'login': 'page-login',
   'home': 'page-home',
   'bank-list': 'page-bank-list',
   'bank-detail': 'page-bank-detail',

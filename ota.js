@@ -7,7 +7,7 @@
 
   var VERSION_KEY = 'quiz_app_version';
   var UPDATE_CHECK_KEY = 'quiz_last_update_check';
-  var CURRENT_VERSION = '2.4.0';
+  var CURRENT_VERSION = '2.6.0';
 
   // OTA 清单地址：优先 jsDelivr（国内可访问），回退 GitHub Pages
   var MANIFEST_URLS = [
@@ -146,12 +146,28 @@
 
   /**
    * 直接更新缓存（写入 OTA 专用缓存，SW 会优先读取）
+   * 带进度提示和CDN缓存验证
    */
   function _directUpdateCache(updateInfo) {
     if (!('caches' in window)) return Promise.resolve(true);
 
+    var fileKeys = Object.keys(updateInfo.files);
+    var totalFiles = fileKeys.length;
+    var completedFiles = 0;
+    var failedFiles = 0;
+    var _toastTimer = null;
+
+    function _showProgress() {
+      if (_toastTimer) clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(function () {
+        window.UIModule && window.UIModule.showToast('正在下载 ' + completedFiles + '/' + totalFiles + ' 个文件...', 2000);
+      }, 100);
+    }
+
+    _showProgress();
+
     return caches.open(OTA_CACHE).then(function (cache) {
-      var promises = Object.keys(updateInfo.files).map(function (filePath) {
+      var promises = fileKeys.map(function (filePath) {
         var fileUrl = updateInfo.files[filePath];
         if (!fileUrl) return Promise.resolve();
 
@@ -166,15 +182,72 @@
           else if (filePath.endsWith('.html')) ct = 'text/html';
           else if (filePath.endsWith('.json')) ct = 'application/json';
 
+          completedFiles++;
+          _showProgress();
           return cache.put(new Request('/' + filePath), new Response(text, { status: 200, headers: { 'Content-Type': ct } }));
-        }).catch(function () {});
+        }).catch(function () {
+          failedFiles++;
+          completedFiles++;
+          _showProgress();
+        });
       });
 
       return Promise.all(promises).then(function () {
         localStorage.setItem(VERSION_KEY, updateInfo.version);
-        return true;
+
+        // 验证下载的文件是否包含新版本号（检测CDN缓存是否已更新）
+        return _verifyOTAVersion(cache, updateInfo.version).then(function (verified) {
+          if (failedFiles > 0) {
+            window.UIModule && window.UIModule.showToast('更新完成（' + failedFiles + '个文件下载失败）', 3000);
+          }
+          if (!verified) {
+            // CDN缓存未更新，提示用户
+            _showCDNCacheWarning(updateInfo.version);
+          }
+          return failedFiles === 0;
+        });
       });
     }).catch(function () { return false; });
+  }
+
+  /**
+   * 验证OTA下载的文件是否包含新版本号
+   * 从OTA缓存中读取ota.js，检查CURRENT_VERSION是否匹配
+   */
+  function _verifyOTAVersion(cache, targetVersion) {
+    return cache.match(new Request('/ota.js')).then(function (response) {
+      if (!response) return false;
+      return response.text().then(function (text) {
+        // 检查ota.js中是否包含新版本号
+        var match = text.match(/CURRENT_VERSION\s*=\s*['"]([^'"]+)['"]/);
+        if (match && match[1] === targetVersion) return true;
+        return false;
+      });
+    }).catch(function () { return false; });
+  }
+
+  /**
+   * 显示CDN缓存未更新的警告
+   */
+  function _showCDNCacheWarning(targetVersion) {
+    var msg = '注意：jsDelivr CDN 缓存可能尚未更新，下载的文件可能仍为旧版本。' +
+      'CDN 通常需要 0~24 小时同步最新文件。' +
+      '建议等待一段时间后再次检查更新，或访问 jsdelivr.net/cache 手动刷新缓存。';
+    if (window.UIModule && window.UIModule.showModal) {
+      window.UIModule.showModal(
+        'CDN 缓存延迟提示',
+        '<div style="text-align:left;font-size:13px;line-height:1.8;">' +
+          '<div style="font-weight:600;color:var(--warning);margin-bottom:8px;">⚠ 检测到CDN缓存延迟</div>' +
+          '<div>目标版本：<strong>v' + targetVersion + '</strong></div>' +
+          '<div style="margin-top:8px;">jsDelivr CDN 缓存可能尚未更新，下载的文件可能仍为旧版本代码。</div>' +
+          '<div style="margin-top:8px;color:var(--text-secondary);">· CDN 通常需要 <strong>0~24 小时</strong>同步最新文件</div>' +
+          '<div style="color:var(--text-secondary);">· 等待后再次「检查更新」即可获取新版本</div>' +
+          '<div style="color:var(--text-secondary);">· 也可访问 <strong>purge.jsdelivr.net</strong> 手动刷新缓存</div>' +
+        '</div>',
+        null,
+        '我知道了'
+      );
+    }
   }
 
   var CACHE_NAME = 'quiz-app-v' + CURRENT_VERSION.replace(/\./g, '');
@@ -211,17 +284,22 @@
       });
       changelogHtml += '</div>';
     }
+    var cdnHint = '<div style="margin-top:10px;padding:8px 10px;background:var(--bg-secondary);border-radius:6px;font-size:12px;color:var(--text-hint);line-height:1.6;">' +
+      '提示：更新文件通过 jsDelivr CDN 分发，CDN 缓存可能需要 0~24 小时同步。' +
+      '如果更新后版本号未变化，请等待后再次检查更新。</div>';
     if (window.UIModule && window.UIModule.showModal) {
       window.UIModule.showModal(
         '发现新版本 v' + update.version,
-        '<div style="text-align:center;"><div style="font-size:36px;font-weight:700;color:var(--primary);">v' + update.version + '</div>' + changelogHtml + '</div>',
+        '<div style="text-align:center;"><div style="font-size:36px;font-weight:700;color:var(--primary);">v' + update.version + '</div>' + changelogHtml + cdnHint + '</div>',
         function () {
+          // 关闭弹窗后开始更新
+          window.UIModule.showToast('开始下载更新文件...', 3000);
           OTAModule.applyUpdate(update).then(function (success) {
             if (success) {
-              window.UIModule.showToast('更新成功，即将重启...');
-              setTimeout(function () { OTAModule.reloadApp(); }, 1500);
+              window.UIModule.showToast('更新成功，即将重启...', 2000);
+              setTimeout(function () { OTAModule.reloadApp(); }, 2000);
             } else {
-              window.UIModule.showToast('更新失败，请重试');
+              window.UIModule.showToast('部分文件更新失败，请稍后重试', 3000);
             }
           });
         },
@@ -229,6 +307,9 @@
       );
     }
   }
+
+  // 暴露给外部调用（首页检查更新按钮）
+  OTAModule._showUpdateModalDirect = _showUpdateModal;
 
   function _compareVersions(v1, v2) {
     var p1 = v1.split('.').map(Number), p2 = v2.split('.').map(Number);

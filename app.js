@@ -32,6 +32,39 @@
     // 初始化护眼模式
     window.ThemeModule.initTheme();
 
+    // 绑定认证页面事件
+    bindAuthEvents();
+
+    // 检查登录状态
+    if (!window.AuthModule.isLoggedIn()) {
+      switchPage('login');
+      return;
+    }
+
+    // 已登录，初始化主应用
+    initMainApp();
+  });
+
+  // ===== 主应用初始化（登录后调用） =====
+  function initMainApp() {
+    // 显示当前用户名
+    var currentUser = window.AuthModule.getCurrentUser();
+    var userNameEl = document.getElementById('current-user-name');
+    if (currentUser && userNameEl) {
+      userNameEl.textContent = currentUser.username;
+    }
+
+    // 绑定退出登录
+    var btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', function () {
+        window.UIModule.showModal('退出登录', '确定要退出当前账号吗？', function () {
+          window.AuthModule.logout();
+          window.location.href = window.location.origin + window.location.pathname;
+        });
+      });
+    }
+
     // 绑定底部导航栏点击事件
     bindBottomNav();
 
@@ -41,8 +74,8 @@
     // 绑定导入页面事件
     bindImportEvents();
 
-    // 绑定 AI 设置事件
-    bindAISettingsEvents();
+    // 绑定检查更新事件
+    bindCheckUpdateEvents();
 
     // 绑定练习页面按钮事件
     window.PracticeModule.bindPracticeEvents();
@@ -54,24 +87,25 @@
     window.addEventListener('hashchange', onRouteChange);
 
     // 尝试恢复进度
-    const restored = await window.PracticeModule.restoreProgress();
-    if (restored) {
-      switchPage('practice');
-      updateNavHighlight('practice');
-      window.PracticeModule.renderCurrentQuestion();
-    } else {
-      window.StatsModule.renderHomePage();
-      renderBankList();
-      window.PracticeModule.renderPracticePage();
-      window.PracticeModule.renderWrongPage();
-      window.PracticeModule.renderCollectionPage();
-    }
+    window.PracticeModule.restoreProgress().then(function (restored) {
+      if (restored) {
+        switchPage('practice');
+        updateNavHighlight('practice');
+        window.PracticeModule.renderCurrentQuestion();
+      } else {
+        window.StatsModule.renderHomePage();
+        renderBankList();
+        window.PracticeModule.renderPracticePage();
+        window.PracticeModule.renderWrongPage();
+        window.PracticeModule.renderCollectionPage();
+      }
+    });
 
     // 自动检查 OTA 更新
     if (window.OTAModule) {
       window.OTAModule.autoCheck();
     }
-  });
+  }
 
   // ===== 路由变化时自动刷新 =====
   function onRouteChange() {
@@ -279,92 +313,153 @@
     });
   };
 
-  // ===== 设置事件绑定 =====
-  function bindAISettingsEvents() {
-    var btnAISettings = document.getElementById('btn-ai-settings');
-    var overlay = document.getElementById('ai-settings-overlay');
-    var btnClose = document.getElementById('ai-settings-close');
-    var otaUrlInput = document.getElementById('ota-manifest-url');
-    var btnCheckUpdate = document.getElementById('btn-check-update');
-    var otaStatus = document.getElementById('ota-update-status');
-    var btnCancelAI = document.getElementById('btn-cancel-ai');
+  // ===== 认证页面事件绑定 =====
+  function bindAuthEvents() {
+    var formLogin = document.getElementById('auth-form-login');
+    var formRegister = document.getElementById('auth-form-register');
+    var formForgot = document.getElementById('auth-form-forgot');
 
-    // 打开设置
-    if (btnAISettings) {
-      btnAISettings.addEventListener('click', function () {
-        if (overlay) {
-          overlay.style.display = '';
-          if (otaUrlInput) otaUrlInput.value = window.OTAModule ? window.OTAModule.getManifestUrl() : '';
-          if (otaStatus) otaStatus.textContent = '';
-        }
+    // 切换到注册
+    var linkToRegister = document.getElementById('link-to-register');
+    if (linkToRegister) {
+      linkToRegister.addEventListener('click', function () {
+        formLogin.style.display = 'none';
+        formRegister.style.display = '';
+        formForgot.style.display = 'none';
       });
     }
 
-    // 关闭设置
-    if (btnClose) {
-      btnClose.addEventListener('click', function () {
-        if (overlay) overlay.style.display = 'none';
-        if (window.OTAModule && otaUrlInput) {
-          window.OTAModule.setManifestUrl(otaUrlInput.value);
-        }
+    // 切换到登录
+    var linkToLogin = document.getElementById('link-to-login');
+    if (linkToLogin) {
+      linkToLogin.addEventListener('click', function () {
+        formLogin.style.display = '';
+        formRegister.style.display = 'none';
+        formForgot.style.display = 'none';
       });
     }
 
-    // 点击遮罩关闭
-    if (overlay) {
-      overlay.addEventListener('click', function (e) {
-        if (e.target === overlay) {
-          overlay.style.display = 'none';
-          if (window.OTAModule && otaUrlInput) window.OTAModule.setManifestUrl(otaUrlInput.value);
-        }
+    // 切换到忘记密码
+    var linkToForgot = document.getElementById('link-to-forgot');
+    if (linkToForgot) {
+      linkToForgot.addEventListener('click', function () {
+        formLogin.style.display = 'none';
+        formRegister.style.display = 'none';
+        formForgot.style.display = '';
       });
     }
 
-    // 检查更新
-    if (btnCheckUpdate && otaStatus) {
-      btnCheckUpdate.addEventListener('click', function () {
-        if (otaUrlInput) window.OTAModule.setManifestUrl(otaUrlInput.value);
-        otaStatus.textContent = '检查中...';
-        otaStatus.style.color = 'var(--text-hint)';
-        window.OTAModule.checkForUpdate().then(function (update) {
-          if (!update) {
-            otaStatus.textContent = '未配置更新地址';
-            otaStatus.style.color = 'var(--danger)';
-          } else if (update._error) {
-            otaStatus.textContent = '检查失败：' + update._error;
-            otaStatus.style.color = 'var(--danger)';
-          } else if (update._current) {
-            otaStatus.textContent = '已是最新版本 (远程 v' + update.remoteVersion + ')';
-            otaStatus.style.color = 'var(--success)';
-          } else {
-            otaStatus.textContent = '发现新版本 v' + update.version;
-            otaStatus.style.color = 'var(--primary)';
-            window.OTAModule.applyUpdate(update).then(function (success) {
-              if (success) {
-                window.UIModule.showToast('更新成功，即将重启...');
-                setTimeout(function () {
-                  window.OTAModule.reloadApp();
-                }, 1500);
-              } else {
-                otaStatus.textContent = '更新失败，请重试';
-                otaStatus.style.color = 'var(--danger)';
-              }
-            });
-          }
+    // 从忘记密码返回登录
+    var linkToLoginFromForgot = document.getElementById('link-to-login-from-forgot');
+    if (linkToLoginFromForgot) {
+      linkToLoginFromForgot.addEventListener('click', function () {
+        formLogin.style.display = '';
+        formRegister.style.display = 'none';
+        formForgot.style.display = 'none';
+      });
+    }
+
+    // 登录
+    var btnLogin = document.getElementById('btn-login');
+    if (btnLogin) {
+      btnLogin.addEventListener('click', function () {
+        var username = document.getElementById('login-username').value;
+        var password = document.getElementById('login-password').value;
+        window.AuthModule.login(username, password).then(function () {
+          window.UIModule.showToast('登录成功', 2000);
+          setTimeout(function () {
+            navigateTo('#home');
+            initMainApp();
+          }, 500);
         }).catch(function (err) {
-          otaStatus.textContent = '检查失败：' + err.message;
-          otaStatus.style.color = 'var(--danger)';
+          window.UIModule.showToast(err.message, 3000);
         });
       });
     }
 
-    // 取消文件转换
-    if (btnCancelAI) {
-      btnCancelAI.addEventListener('click', function () {
-        _aiConvertAborted = true;
-        var progressEl = document.getElementById('ai-convert-progress');
-        if (progressEl) progressEl.style.display = 'none';
-        window.UIModule.showToast('已取消转换');
+    // 注册
+    var btnRegister = document.getElementById('btn-register');
+    if (btnRegister) {
+      btnRegister.addEventListener('click', function () {
+        var username = document.getElementById('register-username').value;
+        var password = document.getElementById('register-password').value;
+        var password2 = document.getElementById('register-password2').value;
+        if (password !== password2) {
+          window.UIModule.showToast('两次密码不一致', 3000);
+          return;
+        }
+        window.AuthModule.register(username, password).then(function () {
+          window.UIModule.showToast('注册成功', 2000);
+          setTimeout(function () {
+            navigateTo('#home');
+            initMainApp();
+          }, 500);
+        }).catch(function (err) {
+          window.UIModule.showToast(err.message, 3000);
+        });
+      });
+    }
+
+    // 忘记密码
+    var btnForgot = document.getElementById('btn-forgot');
+    if (btnForgot) {
+      btnForgot.addEventListener('click', function () {
+        var username = document.getElementById('forgot-username').value;
+        var password = document.getElementById('forgot-password').value;
+        var password2 = document.getElementById('forgot-password2').value;
+        if (password !== password2) {
+          window.UIModule.showToast('两次密码不一致', 3000);
+          return;
+        }
+        window.AuthModule.forgotPassword(username, password).then(function () {
+          window.UIModule.showToast('密码重置成功', 2000);
+          setTimeout(function () {
+            formLogin.style.display = '';
+            formRegister.style.display = 'none';
+            formForgot.style.display = 'none';
+          }, 500);
+        }).catch(function (err) {
+          window.UIModule.showToast(err.message, 3000);
+        });
+      });
+    }
+
+    // 回车键提交
+    ['login-username', 'login-password'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('keydown', function (e) { if (e.key === 'Enter') btnLogin && btnLogin.click(); });
+    });
+    ['register-username', 'register-password', 'register-password2'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('keydown', function (e) { if (e.key === 'Enter') btnRegister && btnRegister.click(); });
+    });
+    ['forgot-username', 'forgot-password', 'forgot-password2'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('keydown', function (e) { if (e.key === 'Enter') btnForgot && btnForgot.click(); });
+    });
+  }
+
+  // ===== 检查更新事件绑定 =====
+  function bindCheckUpdateEvents() {
+    var btnCheckUpdate = document.getElementById('btn-check-update');
+
+    if (btnCheckUpdate) {
+      btnCheckUpdate.addEventListener('click', function () {
+        window.UIModule.showToast('正在检查更新...', 2000);
+        window.OTAModule.checkForUpdate().then(function (update) {
+          if (!update) {
+            window.UIModule.showToast('未配置更新地址', 3000);
+          } else if (update._error) {
+            window.UIModule.showToast('检查失败：' + update._error, 3000);
+          } else if (update._current) {
+            window.UIModule.showToast('已是最新版本 v' + update.remoteVersion, 3000);
+          } else {
+            // 发现新版本，由ota.js的_showUpdateModal处理
+            window.OTAModule._showUpdateModalDirect(update);
+          }
+        }).catch(function (err) {
+          window.UIModule.showToast('检查失败：' + err.message, 3000);
+        });
       });
     }
   }

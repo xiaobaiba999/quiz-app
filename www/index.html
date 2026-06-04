@@ -12,13 +12,83 @@
 </head>
 <body>
 
+  <!-- 登录/注册页 -->
+  <div id="page-login" class="page active">
+    <div class="auth-container">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">📚</div>
+        <h1>刷题助手</h1>
+        <p class="auth-subtitle">高效刷题，轻松备考</p>
+      </div>
+      <div class="auth-card">
+        <!-- 登录表单 -->
+        <div id="auth-form-login" class="auth-form">
+          <div class="auth-form-title">登录</div>
+          <div class="auth-input-group">
+            <input type="text" id="login-username" class="auth-input" placeholder="请输入用户名" autocomplete="username">
+          </div>
+          <div class="auth-input-group">
+            <input type="password" id="login-password" class="auth-input" placeholder="请输入密码" autocomplete="current-password">
+          </div>
+          <button class="btn btn-primary btn-block auth-submit" id="btn-login">登录</button>
+          <div class="auth-links">
+            <a href="javascript:void(0)" id="link-to-register">没有账号？立即注册</a>
+            <a href="javascript:void(0)" id="link-to-forgot">忘记密码</a>
+          </div>
+        </div>
+        <!-- 注册表单 -->
+        <div id="auth-form-register" class="auth-form" style="display:none;">
+          <div class="auth-form-title">注册</div>
+          <div class="auth-input-group">
+            <input type="text" id="register-username" class="auth-input" placeholder="请输入用户名" autocomplete="username">
+          </div>
+          <div class="auth-input-group">
+            <input type="password" id="register-password" class="auth-input" placeholder="请输入密码（至少4位）" autocomplete="new-password">
+          </div>
+          <div class="auth-input-group">
+            <input type="password" id="register-password2" class="auth-input" placeholder="请确认密码" autocomplete="new-password">
+          </div>
+          <button class="btn btn-primary btn-block auth-submit" id="btn-register">注册</button>
+          <div class="auth-links">
+            <a href="javascript:void(0)" id="link-to-login">已有账号？去登录</a>
+          </div>
+        </div>
+        <!-- 忘记密码表单 -->
+        <div id="auth-form-forgot" class="auth-form" style="display:none;">
+          <div class="auth-form-title">重置密码</div>
+          <div class="auth-input-group">
+            <input type="text" id="forgot-username" class="auth-input" placeholder="请输入用户名" autocomplete="username">
+          </div>
+          <div class="auth-input-group">
+            <input type="password" id="forgot-password" class="auth-input" placeholder="请输入新密码（至少4位）" autocomplete="new-password">
+          </div>
+          <div class="auth-input-group">
+            <input type="password" id="forgot-password2" class="auth-input" placeholder="请确认新密码" autocomplete="new-password">
+          </div>
+          <button class="btn btn-primary btn-block auth-submit" id="btn-forgot">重置密码</button>
+          <div class="auth-links">
+            <a href="javascript:void(0)" id="link-to-login-from-forgot">返回登录</a>
+          </div>
+        </div>
+      </div>
+      <div class="auth-footer">数据存储在本地设备</div>
+    </div>
+  </div>
+
   <!-- 首页 -->
   <div id="page-home" class="page active">
     <header class="page-header">
-      <h1>刷题助手 <span class="app-version">2.4</span></h1>
-      <button class="theme-toggle" id="theme-toggle-home" title="切换护眼模式">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
-      </button>
+      <h1>刷题助手 <span class="app-version">2.6</span></h1>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="current-user-name" style="font-size:12px;color:var(--text-secondary);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        <button class="btn btn-header-action" id="btn-check-update" title="检查更新">检查更新</button>
+        <button class="theme-toggle" id="btn-logout" title="退出登录">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+        </button>
+        <button class="theme-toggle" id="theme-toggle-home" title="切换护眼模式">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        </button>
+      </div>
     </header>
     <main class="page-content">
       <section class="home-stats">
@@ -125,7 +195,6 @@
     <header class="page-header">
       <h1>导入题库</h1>
       <div style="display:flex;gap:8px;align-items:center;">
-        <button class="btn btn-header-action" id="btn-ai-settings" title="设置">设置</button>
         <button class="theme-toggle" id="theme-toggle-import" title="切换护眼模式">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
         </button>
@@ -421,29 +490,10 @@ B. 选项B
     <div class="loading-text" id="loading-text">加载中...</div>
   </div>
 
-  <!-- 设置弹窗 -->
-  <div class="ai-settings-overlay" id="ai-settings-overlay" style="display:none;">
-    <div class="ai-settings-panel">
-      <div class="ai-settings-header">
-        <span class="ai-settings-title">设置</span>
-        <button class="ai-settings-close" id="ai-settings-close">&times;</button>
-      </div>
-      <div class="ai-settings-body">
-        <div class="ai-settings-section">
-          <div class="ai-settings-label">OTA 热更新</div>
-          <div class="ai-settings-desc">推送新代码到 GitHub 后 APP 自动检测并更新</div>
-          <input type="url" id="ota-manifest-url" class="ai-settings-input" value="" style="font-size:12px;">
-          <button class="btn btn-primary btn-block" id="btn-check-update" style="margin-top:12px;">检查更新</button>
-          <div class="ai-settings-status" id="ota-update-status"></div>
-          <div style="margin-top:8px;font-size:12px;color:var(--text-hint);">当前版本 v2.4.0</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- 脚本引入 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="db.js"></script>
+  <script src="auth.js"></script>
   <script src="router.js"></script>
   <script src="ota.js"></script>
   <script src="import.js"></script>

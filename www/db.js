@@ -1,7 +1,7 @@
 // 刷题助手 - 数据库模块（IndexedDB）
 
 var DB_NAME = 'QuizAppDB';
-var DB_VERSION = 3;
+var DB_VERSION = 4;
 
 var dbInstance = null;
 
@@ -44,6 +44,12 @@ function initDB(retryCount) {
         const noteStore = db.createObjectStore('notes', { keyPath: 'id', autoIncrement: true });
         noteStore.createIndex('questionId', 'questionId', { unique: false });
         noteStore.createIndex('bankId', 'bankId', { unique: false });
+      }
+
+      // 用户表（版本4新增）
+      if (!db.objectStoreNames.contains('users')) {
+        const userStore = db.createObjectStore('users', { keyPath: 'id', autoIncrement: true });
+        userStore.createIndex('username', 'username', { unique: true });
       }
 
       // 版本 3 升级：为已有数据添加新字段的默认值
@@ -1014,4 +1020,105 @@ function getStreakDays() {
       request.onerror = () => reject(request.error);
     });
   });
+}
+
+// ==================== 用户相关函数 ====================
+
+/**
+ * 注册用户
+ * @param {string} username - 用户名
+ * @param {string} password - 密码
+ * @returns {Promise<Object>} 用户对象
+ */
+function registerUser(username, password) {
+  return withTransaction(['users'], 'readwrite', ([store]) => {
+    return new Promise((resolve, reject) => {
+      const index = store.index('username');
+      const checkRequest = index.get(username);
+      checkRequest.onsuccess = () => {
+        if (checkRequest.result) {
+          reject(new Error('用户名已存在'));
+          return;
+        }
+        const user = { username, password: _simpleHash(password), createdAt: Date.now() };
+        const addRequest = store.add(user);
+        addRequest.onsuccess = () => {
+          user.id = addRequest.result;
+          resolve(user);
+        };
+        addRequest.onerror = () => reject(addRequest.error);
+      };
+      checkRequest.onerror = () => reject(checkRequest.error);
+    });
+  });
+}
+
+/**
+ * 用户登录
+ * @param {string} username - 用户名
+ * @param {string} password - 密码
+ * @returns {Promise<Object>} 用户对象
+ */
+function loginUser(username, password) {
+  return withTransaction(['users'], 'readonly', ([store]) => {
+    return new Promise((resolve, reject) => {
+      const index = store.index('username');
+      const request = index.get(username);
+      request.onsuccess = () => {
+        const user = request.result;
+        if (!user) {
+          reject(new Error('用户名不存在'));
+          return;
+        }
+        if (user.password !== _simpleHash(password)) {
+          reject(new Error('密码错误'));
+          return;
+        }
+        resolve(user);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  });
+}
+
+/**
+ * 重置密码（只需用户名即可）
+ * @param {string} username - 用户名
+ * @param {string} newPassword - 新密码
+ * @returns {Promise<Object>} 更新后的用户对象
+ */
+function resetPassword(username, newPassword) {
+  return withTransaction(['users'], 'readwrite', ([store]) => {
+    return new Promise((resolve, reject) => {
+      const index = store.index('username');
+      const request = index.get(username);
+      request.onsuccess = () => {
+        const user = request.result;
+        if (!user) {
+          reject(new Error('用户名不存在'));
+          return;
+        }
+        user.password = _simpleHash(newPassword);
+        const updateRequest = store.put(user);
+        updateRequest.onsuccess = () => resolve(user);
+        updateRequest.onerror = () => reject(updateRequest.error);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  });
+}
+
+/**
+ * 简单哈希函数（本地存储，非安全加密）
+ * @param {string} str - 原始字符串
+ * @returns {string} 哈希值
+ */
+function _simpleHash(str) {
+  var hash = 0;
+  for (var i = 0; i < str.length; i++) {
+    var char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return 'h' + Math.abs(hash).toString(36);
 }
