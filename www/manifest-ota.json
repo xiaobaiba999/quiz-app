@@ -1,6 +1,6 @@
 {
-  "version": "2.2.0",
-  "changelog": "新增启动时OTA更新弹窗提示；优化文档导入解析；去除API Key配置；修复设置面板显示问题",
+  "version": "2.3.0",
+  "changelog": "Chart.js CDN加载失败降级处理；Service Worker缓存版本自动关联；构建脚本自动同步www目录；修复事件重复绑定；修复DB重试无限循环；补全暗色模式样式；优化空题库友好提示",
   "updateUrl": "",
   "files": {
     "index.html": "index.html",

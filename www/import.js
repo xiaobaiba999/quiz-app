@@ -122,6 +122,7 @@ function _handleSmartImport(file, ext) {
       progressText.textContent = '解析完成！';
       progressBar.style.width = '100%';
       setTimeout(function () {
+        _aiConvertAborted = false;
         progressEl.style.display = 'none';
         _showImportPreview(file.name, parsedQuestions);
       }, 400);
@@ -147,6 +148,7 @@ function _handleSmartImport(file, ext) {
         parsedQuestions = parseTXT(formattedText);
 
         if (parsedQuestions.length === 0) {
+          _aiConvertAborted = false;
           progressEl.style.display = 'none';
           _showImportToast('AI 转换后未能解析出题目，请检查文件内容');
           return;
@@ -154,12 +156,14 @@ function _handleSmartImport(file, ext) {
 
         progressBar.style.width = '100%';
         setTimeout(function () {
+          _aiConvertAborted = false;
           progressEl.style.display = 'none';
           _showImportPreview(file.name, parsedQuestions);
         }, 500);
       });
     } else {
       // 没有 AI Key，提示用户
+      _aiConvertAborted = false;
       progressEl.style.display = 'none';
       window.UIModule.showModal(
         '未能识别题目',
@@ -171,8 +175,10 @@ function _handleSmartImport(file, ext) {
       );
     }
   }).catch(function (err) {
+    var wasAborted = _aiConvertAborted;
+    _aiConvertAborted = false;
     progressEl.style.display = 'none';
-    if (!_aiConvertAborted) {
+    if (!wasAborted) {
       _showImportToast('文件解析失败：' + err.message);
     }
   });

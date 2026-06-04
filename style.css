@@ -2755,6 +2755,36 @@ body.dark .ai-settings-input {
   border-color: #2E2E3E;
 }
 
+body.dark .ai-settings-panel {
+  background: #1C1C28;
+  border: 1px solid #2E2E3E;
+}
+
+body.dark .ai-settings-overlay {
+  background: rgba(0,0,0,0.7);
+}
+
+body.dark .ai-progress-card {
+  background: #1C1C28;
+  border-color: #2E2E3E;
+}
+
+body.dark .ai-progress-spinner {
+  border-color: #2E2E3E;
+  border-top-color: var(--primary);
+}
+
+/* 夜晚模式 - OTA 更新横幅 */
+body.dark .ota-update-banner {
+  background: #1C1C28;
+  border-bottom-color: var(--primary);
+}
+
+/* 夜晚模式 - 空状态 */
+body.dark .empty-state {
+  color: #999;
+}
+
 /* ===== OTA 更新横幅 ===== */
 .ota-update-banner {
   position: fixed;

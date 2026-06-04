@@ -1373,11 +1373,12 @@
 
   // ===== 练习页面按钮事件绑定 =====
   function bindPracticeEvents() {
-    const btnPrev = document.getElementById('btn-prev');
-    const btnNext = document.getElementById('btn-next');
+    var btnPrev = document.getElementById('btn-prev');
+    var btnNext = document.getElementById('btn-next');
 
-    if (btnPrev) {
-      btnPrev.addEventListener('click', () => {
+    if (btnPrev && !btnPrev.dataset.bound) {
+      btnPrev.dataset.bound = '1';
+      btnPrev.addEventListener('click', function() {
         if (currentIndex > 0) {
           currentIndex--;
           saveProgress();
@@ -1386,8 +1387,9 @@
       });
     }
 
-    if (btnNext) {
-      btnNext.addEventListener('click', () => {
+    if (btnNext && !btnNext.dataset.bound) {
+      btnNext.dataset.bound = '1';
+      btnNext.addEventListener('click', function() {
         if (currentIndex < currentQuestions.length - 1) {
           currentIndex++;
           saveProgress();
@@ -1400,31 +1402,37 @@
 
     // 收藏按钮
     var btnCollect = document.getElementById('btn-collect');
-    if (btnCollect) {
+    if (btnCollect && !btnCollect.dataset.bound) {
+      btnCollect.dataset.bound = '1';
       btnCollect.addEventListener('click', handleToggleCollect);
     }
 
     // 笔记按钮
     var btnNote = document.getElementById('btn-note');
-    if (btnNote) {
+    if (btnNote && !btnNote.dataset.bound) {
+      btnNote.dataset.bound = '1';
       btnNote.addEventListener('click', openNoteModal);
     }
 
     // 笔记弹窗
     var noteModalClose = document.getElementById('note-modal-close');
-    if (noteModalClose) {
+    if (noteModalClose && !noteModalClose.dataset.bound) {
+      noteModalClose.dataset.bound = '1';
       noteModalClose.addEventListener('click', closeNoteModal);
     }
     var noteModalCancel = document.getElementById('note-modal-cancel');
-    if (noteModalCancel) {
+    if (noteModalCancel && !noteModalCancel.dataset.bound) {
+      noteModalCancel.dataset.bound = '1';
       noteModalCancel.addEventListener('click', closeNoteModal);
     }
     var noteModalSave = document.getElementById('note-modal-save');
-    if (noteModalSave) {
+    if (noteModalSave && !noteModalSave.dataset.bound) {
+      noteModalSave.dataset.bound = '1';
       noteModalSave.addEventListener('click', saveNote);
     }
     var noteModalOverlay = document.getElementById('note-modal-overlay');
-    if (noteModalOverlay) {
+    if (noteModalOverlay && !noteModalOverlay.dataset.bound) {
+      noteModalOverlay.dataset.bound = '1';
       noteModalOverlay.addEventListener('click', function(e) {
         if (e.target === noteModalOverlay) closeNoteModal();
       });
@@ -1432,15 +1440,18 @@
 
     // 答题卡按钮
     var btnAnswerSheet = document.getElementById('btn-answer-sheet');
-    if (btnAnswerSheet) {
+    if (btnAnswerSheet && !btnAnswerSheet.dataset.bound) {
+      btnAnswerSheet.dataset.bound = '1';
       btnAnswerSheet.addEventListener('click', openAnswerSheet);
     }
     var answerSheetClose = document.getElementById('answer-sheet-close');
-    if (answerSheetClose) {
+    if (answerSheetClose && !answerSheetClose.dataset.bound) {
+      answerSheetClose.dataset.bound = '1';
       answerSheetClose.addEventListener('click', closeAnswerSheet);
     }
     var answerSheetOverlay = document.getElementById('answer-sheet-overlay');
-    if (answerSheetOverlay) {
+    if (answerSheetOverlay && !answerSheetOverlay.dataset.bound) {
+      answerSheetOverlay.dataset.bound = '1';
       answerSheetOverlay.addEventListener('click', function(e) {
         if (e.target === answerSheetOverlay) closeAnswerSheet();
       });

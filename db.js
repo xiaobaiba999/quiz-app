@@ -1,15 +1,16 @@
 // 刷题助手 - 数据库模块（IndexedDB）
 
-const DB_NAME = 'QuizAppDB';
-const DB_VERSION = 3;
+var DB_NAME = 'QuizAppDB';
+var DB_VERSION = 3;
 
-let dbInstance = null;
+var dbInstance = null;
 
 /**
  * 初始化/打开数据库，创建 object stores 和索引
  * @returns {Promise<IDBDatabase>}
  */
-function initDB() {
+function initDB(retryCount) {
+  retryCount = retryCount || 0;
   if (dbInstance) return Promise.resolve(dbInstance);
 
   return new Promise((resolve, reject) => {
@@ -117,17 +118,15 @@ function initDB() {
       const error = event.target.error;
       // 如果版本冲突，删除旧数据库后重试
       if (error && error.name === 'VersionError') {
-        console.warn('[DB] 版本冲突，删除旧数据库重建...');
+        if (retryCount >= 3) {
+          console.error('[DB] 版本冲突重试已达上限(3次)，放弃重试');
+          reject(error);
+          return;
+        }
+        console.warn('[DB] 版本冲突，删除旧数据库重建... (重试 ' + (retryCount + 1) + '/3)');
         indexedDB.deleteDatabase(DB_NAME);
         dbInstance = null;
-        // 重试一次
-        const retry = indexedDB.open(DB_NAME, DB_VERSION);
-        retry.onupgradeneeded = request.onupgradeneeded;
-        retry.onsuccess = (e) => {
-          dbInstance = e.target.result;
-          resolve(dbInstance);
-        };
-        retry.onerror = (e) => reject(e.target.error);
+        initDB(retryCount + 1).then(resolve).catch(reject);
       } else {
         reject(error);
       }
@@ -222,25 +221,37 @@ function deleteBank(id) {
       // 删除该题库下所有题目
       const qStore = tx.objectStore('questions');
       const qIndex = qStore.index('bankId');
-      qIndex.openCursor(IDBKeyRange.only(id)).onsuccess = (e) => {
+      var qCursor = qIndex.openCursor(IDBKeyRange.only(id));
+      qCursor.onsuccess = (e) => {
         const cursor = e.target.result;
         if (cursor) { cursor.delete(); cursor.continue(); }
+      };
+      qCursor.onerror = function(e) {
+        console.error('[DB] 删除题目失败:', e.target.error);
       };
 
       // 删除该题库下所有答题记录
       const rStore = tx.objectStore('records');
       const rIndex = rStore.index('bankId');
-      rIndex.openCursor(IDBKeyRange.only(id)).onsuccess = (e) => {
+      var rCursor = rIndex.openCursor(IDBKeyRange.only(id));
+      rCursor.onsuccess = (e) => {
         const cursor = e.target.result;
         if (cursor) { cursor.delete(); cursor.continue(); }
+      };
+      rCursor.onerror = function(e) {
+        console.error('[DB] 删除答题记录失败:', e.target.error);
       };
 
       // 删除该题库下所有笔记
       const nStore = tx.objectStore('notes');
       const nIndex = nStore.index('bankId');
-      nIndex.openCursor(IDBKeyRange.only(id)).onsuccess = (e) => {
+      var nCursor = nIndex.openCursor(IDBKeyRange.only(id));
+      nCursor.onsuccess = (e) => {
         const cursor = e.target.result;
         if (cursor) { cursor.delete(); cursor.continue(); }
+      };
+      nCursor.onerror = function(e) {
+        console.error('[DB] 删除笔记失败:', e.target.error);
       };
 
       tx.oncomplete = () => resolve();

@@ -61,9 +61,13 @@
 
   // ===== 首页饼状图 =====
   function renderHomePieChart(stats) {
-    const canvas = document.getElementById('home-pie-chart');
+    var canvas = document.getElementById('home-pie-chart');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    if (typeof Chart === 'undefined') {
+      _showChartFallback(canvas, '图表库加载失败');
+      return;
+    }
+    var ctx = canvas.getContext('2d');
     if (window._homePieChart) window._homePieChart.destroy();
     window._homePieChart = new Chart(ctx, {
       type: 'doughnut',
@@ -87,9 +91,10 @@
 
   // ===== 首页趋势图 =====
   function renderHomeTrendChart(records) {
-    const canvas = document.getElementById('home-trend-chart');
+    var canvas = document.getElementById('home-trend-chart');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    if (typeof Chart === 'undefined') return;
+    var ctx = canvas.getContext('2d');
     if (window._homeTrendChart) window._homeTrendChart.destroy();
 
     const dailyMap = new Map();
@@ -135,9 +140,10 @@
 
   // ===== 首页各题型正确率柱状图 =====
   function renderHomeTypeBarChart(statsByType) {
-    const canvas = document.getElementById('home-type-bar-chart');
+    var canvas = document.getElementById('home-type-bar-chart');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    if (typeof Chart === 'undefined') return;
+    var ctx = canvas.getContext('2d');
     if (window._homeTypeBarChart) window._homeTypeBarChart.destroy();
 
     var typeLabels = { choice: '选择题', judgment: '判断题', fill: '填空题', multiple: '多选题', essay: '简答题', unknown: '未知' };
@@ -212,9 +218,10 @@
 
   // ===== 首页知识点掌握度雷达图 =====
   function renderHomeTagRadarChart(statsByTag) {
-    const canvas = document.getElementById('home-tag-radar-chart');
+    var canvas = document.getElementById('home-tag-radar-chart');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    if (typeof Chart === 'undefined') return;
+    var ctx = canvas.getContext('2d');
     if (window._homeTagRadarChart) window._homeTagRadarChart.destroy();
 
     var entries = Object.entries(statsByTag);
@@ -354,9 +361,13 @@
 
   // ===== 结果页饼状图 =====
   function renderResultPieChart(correct, wrong) {
-    const canvas = document.getElementById('result-pie-chart');
+    var canvas = document.getElementById('result-pie-chart');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    if (typeof Chart === 'undefined') {
+      _showChartFallback(canvas, '图表库加载失败');
+      return;
+    }
+    var ctx = canvas.getContext('2d');
     if (window._resultPieChart) window._resultPieChart.destroy();
     window._resultPieChart = new Chart(ctx, {
       type: 'doughnut',
@@ -380,9 +391,10 @@
 
   // ===== 结果页趋势图 =====
   function renderResultTrendChart(records) {
-    const canvas = document.getElementById('result-trend-chart');
+    var canvas = document.getElementById('result-trend-chart');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    if (typeof Chart === 'undefined') return;
+    var ctx = canvas.getContext('2d');
     if (window._resultTrendChart) window._resultTrendChart.destroy();
 
     const dailyMap = new Map();
@@ -424,6 +436,13 @@
         }
       }
     });
+  }
+
+  // ===== 图表库加载失败时的降级显示 =====
+  function _showChartFallback(canvas, message) {
+    var parent = canvas.parentElement;
+    if (!parent) return;
+    parent.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:120px;color:var(--text-hint);font-size:13px;">' + message + '</div>';
   }
 
   // 暴露到全局

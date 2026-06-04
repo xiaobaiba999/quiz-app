@@ -7,7 +7,7 @@
 
   var VERSION_KEY = 'quiz_app_version';
   var UPDATE_CHECK_KEY = 'quiz_last_update_check';
-  var CURRENT_VERSION = '2.2.0';
+  var CURRENT_VERSION = '2.3.0';
 
   // 默认更新清单地址（GitHub Pages 部署后自动可用）
   var DEFAULT_MANIFEST_URL = 'https://xiaobaiba999.github.io/quiz-app/manifest-ota.json';
@@ -153,7 +153,7 @@
     });
   }
 
-  var CACHE_NAME = 'quiz-app-v11';
+  var CACHE_NAME = 'quiz-app-v' + CURRENT_VERSION.replace(/\./g, '');
 
   /**
    * 立即刷新页面以应用更新

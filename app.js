@@ -179,7 +179,7 @@
       const banks = await getAllBanks();
 
       if (banks.length === 0) {
-        container.innerHTML = '<p class="empty-tip">暂无题库，点击右上角导入</p>';
+        container.innerHTML = '<div class="empty-tip"><div style="font-size:40px;margin-bottom:12px;">📚</div><div>暂无题库</div><div style="font-size:12px;margin-top:6px;">点击右上角「+」导入题库开始刷题</div></div>';
         return;
       }
 
