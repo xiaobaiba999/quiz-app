@@ -1,6 +1,6 @@
 {
-  "version": "2.7.0",
-  "changelog": "OTA热更新测试；修复登录页显示bug；路由登录拦截；OTA先验证CDN再写入",
+  "version": "2.8.0",
+  "changelog": "修复OTA更新后不生效问题；同时写入OTA缓存和应用缓存；更新SW后重启",
   "updateUrl": "",
   "files": {
     "index.html": "index.html",

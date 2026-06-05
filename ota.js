@@ -7,7 +7,7 @@
 
   var VERSION_KEY = 'quiz_app_version';
   var UPDATE_CHECK_KEY = 'quiz_last_update_check';
-  var CURRENT_VERSION = '2.7.0';
+  var CURRENT_VERSION = '2.8.0';
 
   // OTA 清单地址：优先 jsDelivr（国内可访问），回退 GitHub Pages
   var MANIFEST_URLS = [
@@ -204,8 +204,8 @@
         return false;
       }
 
-      // 第三步：验证通过，写入OTA缓存
-      return caches.open(OTA_CACHE).then(function (cache) {
+      // 第三步：验证通过，写入缓存（同时写入OTA缓存和应用缓存，确保万无一失）
+      return caches.open(OTA_CACHE).then(function (otaCache) {
         var writePromises = Object.keys(downloadedTexts).map(function (filePath) {
           var text = downloadedTexts[filePath];
           var ct = 'text/plain';
@@ -214,11 +214,47 @@
           else if (filePath.endsWith('.html')) ct = 'text/html';
           else if (filePath.endsWith('.json')) ct = 'application/json';
 
-          return cache.put(new Request('/' + filePath), new Response(text, { status: 200, headers: { 'Content-Type': ct } }));
+          // 同时写入两种URL格式，确保SW能匹配到
+          var req1 = new Request(window.location.origin + '/' + filePath);
+          var req2 = new Request('/' + filePath);
+          var resp1 = new Response(text, { status: 200, headers: { 'Content-Type': ct } });
+          var resp2 = new Response(text, { status: 200, headers: { 'Content-Type': ct } });
+          return otaCache.put(req1, resp1).then(function () {
+            return otaCache.put(req2, resp2);
+          });
         });
 
         return Promise.all(writePromises).then(function () {
+          // 也写入当前应用缓存，确保即使SW策略不读OTA缓存也能生效
+          return caches.keys().then(function (cacheNames) {
+            var appCacheName = cacheNames.find(function (n) { return n.startsWith('quiz-app-v'); });
+            if (!appCacheName) return;
+            return caches.open(appCacheName).then(function (appCache) {
+              var appWritePromises = Object.keys(downloadedTexts).map(function (filePath) {
+                var text = downloadedTexts[filePath];
+                var ct = 'text/plain';
+                if (filePath.endsWith('.js')) ct = 'application/javascript';
+                else if (filePath.endsWith('.css')) ct = 'text/css';
+                else if (filePath.endsWith('.html')) ct = 'text/html';
+                else if (filePath.endsWith('.json')) ct = 'application/json';
+
+                var req1 = new Request(window.location.origin + '/' + filePath);
+                var req2 = new Request('/' + filePath);
+                var resp1 = new Response(text, { status: 200, headers: { 'Content-Type': ct } });
+                var resp2 = new Response(text, { status: 200, headers: { 'Content-Type': ct } });
+                return appCache.put(req1, resp1).then(function () {
+                  return appCache.put(req2, resp2);
+                });
+              });
+              return Promise.all(appWritePromises);
+            });
+          });
+        }).then(function () {
           localStorage.setItem(VERSION_KEY, updateInfo.version);
+          // 通知Service Worker跳过等待立即激活
+          if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+          }
           if (failedFiles > 0) {
             window.UIModule && window.UIModule.showToast('更新完成（' + failedFiles + '个文件下载失败）', 3000);
           }
@@ -255,8 +291,29 @@
   var CACHE_NAME = 'quiz-app-v' + CURRENT_VERSION.replace(/\./g, '');
 
   OTAModule.reloadApp = function () {
-    // Capacitor WebView 中 location.href 比 reload() 更可靠
-    window.location.href = window.location.origin + window.location.pathname;
+    // 先尝试更新Service Worker，然后强制刷新
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+    }
+    // 注册新的SW以触发更新
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.getRegistration().then(function (reg) {
+        if (reg) {
+          reg.update().then(function () {
+            // 等SW更新完成后再刷新页面
+            setTimeout(function () {
+              window.location.href = window.location.origin + window.location.pathname;
+            }, 1000);
+          });
+        } else {
+          window.location.href = window.location.origin + window.location.pathname;
+        }
+      }).catch(function () {
+        window.location.href = window.location.origin + window.location.pathname;
+      });
+    } else {
+      window.location.href = window.location.origin + window.location.pathname;
+    }
   };
 
   OTAModule.getLastCheckTime = function () { return localStorage.getItem(UPDATE_CHECK_KEY) || ''; };
