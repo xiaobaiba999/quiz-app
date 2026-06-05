@@ -145,21 +145,20 @@
     return Promise.resolve(true);
   };
 
-  var OTA_CACHE = 'quiz-app-ota';
+  var OTA_KEY = 'quiz_ota_files';
+  var OTA_VER_KEY = 'quiz_ota_version';
 
   /**
-   * 直接更新缓存（写入 OTA 专用缓存，SW 会优先读取）
-   * 带进度提示和CDN缓存验证，验证失败时自动回退GitHub Pages
+   * 直接更新：下载文件存入localStorage，刷新后由OTA加载器动态注入
+   * 带进度提示和CDN缓存验证，验证失败时自动回退GitHub Raw
    */
   function _directUpdateCache(updateInfo, _retryWithGithubPages) {
-    if (!('caches' in window)) return Promise.resolve(true);
-
     var fileKeys = Object.keys(updateInfo.files);
     var totalFiles = fileKeys.length;
     var completedFiles = 0;
     var failedFiles = 0;
     var _toastTimer = null;
-    var downloadedTexts = {}; // 先暂存下载内容，验证通过后再写入缓存
+    var downloadedTexts = {};
 
     // 如果是回退模式，只使用GitHub Raw地址
     var baseUrls = _retryWithGithubPages
@@ -176,7 +175,7 @@
 
     _showProgress();
 
-    // 第一步：下载所有文件内容（暂存，不写入缓存）
+    // 第一步：下载所有文件内容
     var downloadPromises = fileKeys.map(function (filePath) {
       var fileUrl = updateInfo.files[filePath];
       if (!fileUrl) return Promise.resolve();
@@ -200,7 +199,6 @@
       // 第二步：验证下载的ota.js是否包含新版本号
       var otaText = downloadedTexts['ota.js'];
       if (!otaText) {
-        // ota.js下载失败，尝试GitHub Pages回退
         if (!_retryWithGithubPages) {
           window.UIModule && window.UIModule.showToast('CDN下载失败，尝试GitHub Raw回退...', 2000);
           return _directUpdateCache(updateInfo, true);
@@ -210,81 +208,50 @@
       }
 
       var match = otaText.match(/CURRENT_VERSION\s*=\s*['"]([^'"]+)['"]/);
-      // 验证逻辑：下载的版本号必须大于当前APP版本（不要求精确匹配manifest版本，因为CDN缓存可能不一致）
       var downloadedVersion = match ? match[1] : null;
       var verified = downloadedVersion && _compareVersions(downloadedVersion, CURRENT_VERSION) > 0;
 
       if (!verified) {
-        // CDN缓存未更新或下载的版本不比当前新，如果不是回退模式，自动尝试GitHub Raw
         if (!_retryWithGithubPages) {
           window.UIModule && window.UIModule.showToast('CDN缓存未更新，尝试GitHub Raw回退...', 2000);
           return _directUpdateCache(updateInfo, true);
         }
-        // GitHub Raw也验证失败，显示警告
         _showCDNCacheWarning(updateInfo.version);
         return false;
       }
 
-      // 使用下载文件中的实际版本号（可能比manifest版本更高）
+      // 使用下载文件中的实际版本号
       var actualVersion = downloadedVersion || updateInfo.version;
 
-      // 第三步：验证通过，写入缓存（同时写入OTA缓存和应用缓存，确保万无一失）
-      return caches.open(OTA_CACHE).then(function (otaCache) {
-        var writePromises = Object.keys(downloadedTexts).map(function (filePath) {
-          var text = downloadedTexts[filePath];
-          var ct = 'text/plain';
-          if (filePath.endsWith('.js')) ct = 'application/javascript';
-          else if (filePath.endsWith('.css')) ct = 'text/css';
-          else if (filePath.endsWith('.html')) ct = 'text/html';
-          else if (filePath.endsWith('.json')) ct = 'application/json';
-
-          // 同时写入两种URL格式，确保SW能匹配到
-          var req1 = new Request(window.location.origin + '/' + filePath);
-          var req2 = new Request('/' + filePath);
-          var resp1 = new Response(text, { status: 200, headers: { 'Content-Type': ct } });
-          var resp2 = new Response(text, { status: 200, headers: { 'Content-Type': ct } });
-          return otaCache.put(req1, resp1).then(function () {
-            return otaCache.put(req2, resp2);
-          });
-        });
-
-        return Promise.all(writePromises).then(function () {
-          // 也写入当前应用缓存，确保即使SW策略不读OTA缓存也能生效
-          return caches.keys().then(function (cacheNames) {
-            var appCacheName = cacheNames.find(function (n) { return n.startsWith('quiz-app-v'); });
-            if (!appCacheName) return;
-            return caches.open(appCacheName).then(function (appCache) {
-              var appWritePromises = Object.keys(downloadedTexts).map(function (filePath) {
-                var text = downloadedTexts[filePath];
-                var ct = 'text/plain';
-                if (filePath.endsWith('.js')) ct = 'application/javascript';
-                else if (filePath.endsWith('.css')) ct = 'text/css';
-                else if (filePath.endsWith('.html')) ct = 'text/html';
-                else if (filePath.endsWith('.json')) ct = 'application/json';
-
-                var req1 = new Request(window.location.origin + '/' + filePath);
-                var req2 = new Request('/' + filePath);
-                var resp1 = new Response(text, { status: 200, headers: { 'Content-Type': ct } });
-                var resp2 = new Response(text, { status: 200, headers: { 'Content-Type': ct } });
-                return appCache.put(req1, resp1).then(function () {
-                  return appCache.put(req2, resp2);
-                });
-              });
-              return Promise.all(appWritePromises);
-            });
-          });
-        }).then(function () {
+      // 第三步：存入localStorage，刷新后由OTA加载器读取并注入
+      try {
+        localStorage.setItem(OTA_KEY, JSON.stringify(downloadedTexts));
+        localStorage.setItem(OTA_VER_KEY, actualVersion);
+        localStorage.setItem(VERSION_KEY, actualVersion);
+      } catch (e) {
+        // localStorage可能空间不足，尝试只存关键JS文件
+        window.UIModule && window.UIModule.showToast('存储空间不足，尝试精简存储...', 2000);
+        var essential = {};
+        var essentialFiles = ['ota.js', 'app.js', 'db.js', 'auth.js', 'router.js'];
+        for (var i = 0; i < essentialFiles.length; i++) {
+          if (downloadedTexts[essentialFiles[i]]) {
+            essential[essentialFiles[i]] = downloadedTexts[essentialFiles[i]];
+          }
+        }
+        try {
+          localStorage.setItem(OTA_KEY, JSON.stringify(essential));
+          localStorage.setItem(OTA_VER_KEY, actualVersion);
           localStorage.setItem(VERSION_KEY, actualVersion);
-          // 通知Service Worker跳过等待立即激活
-          if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
-          }
-          if (failedFiles > 0) {
-            window.UIModule && window.UIModule.showToast('更新完成（' + failedFiles + '个文件下载失败）', 3000);
-          }
-          return failedFiles === 0;
-        });
-      });
+        } catch (e2) {
+          window.UIModule && window.UIModule.showToast('存储空间不足，更新失败', 3000);
+          return false;
+        }
+      }
+
+      if (failedFiles > 0) {
+        window.UIModule && window.UIModule.showToast('更新完成（' + failedFiles + '个文件下载失败）', 3000);
+      }
+      return failedFiles === 0;
     }).catch(function () { return false; });
   }
 
@@ -315,29 +282,9 @@
   var CACHE_NAME = 'quiz-app-v' + CURRENT_VERSION.replace(/\./g, '');
 
   OTAModule.reloadApp = function () {
-    // 先尝试更新Service Worker，然后强制刷新
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
-    }
-    // 注册新的SW以触发更新
-    if (navigator.serviceWorker) {
-      navigator.serviceWorker.getRegistration().then(function (reg) {
-        if (reg) {
-          reg.update().then(function () {
-            // 等SW更新完成后再刷新页面
-            setTimeout(function () {
-              window.location.href = window.location.origin + window.location.pathname;
-            }, 1000);
-          });
-        } else {
-          window.location.href = window.location.origin + window.location.pathname;
-        }
-      }).catch(function () {
-        window.location.href = window.location.origin + window.location.pathname;
-      });
-    } else {
-      window.location.href = window.location.origin + window.location.pathname;
-    }
+    // OTA文件已存入localStorage，直接刷新页面即可
+    // OTA加载器会在页面加载时自动注入新代码
+    window.location.reload(true);
   };
 
   OTAModule.getLastCheckTime = function () { return localStorage.getItem(UPDATE_CHECK_KEY) || ''; };
