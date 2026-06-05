@@ -210,18 +210,23 @@
       }
 
       var match = otaText.match(/CURRENT_VERSION\s*=\s*['"]([^'"]+)['"]/);
-      var verified = match && match[1] === updateInfo.version;
+      // 验证逻辑：下载的版本号必须大于当前APP版本（不要求精确匹配manifest版本，因为CDN缓存可能不一致）
+      var downloadedVersion = match ? match[1] : null;
+      var verified = downloadedVersion && _compareVersions(downloadedVersion, CURRENT_VERSION) > 0;
 
       if (!verified) {
-        // CDN缓存未更新，如果不是回退模式，自动尝试GitHub Pages
+        // CDN缓存未更新或下载的版本不比当前新，如果不是回退模式，自动尝试GitHub Raw
         if (!_retryWithGithubPages) {
           window.UIModule && window.UIModule.showToast('CDN缓存未更新，尝试GitHub Raw回退...', 2000);
           return _directUpdateCache(updateInfo, true);
         }
-        // GitHub Pages也验证失败，显示警告
+        // GitHub Raw也验证失败，显示警告
         _showCDNCacheWarning(updateInfo.version);
         return false;
       }
+
+      // 使用下载文件中的实际版本号（可能比manifest版本更高）
+      var actualVersion = downloadedVersion || updateInfo.version;
 
       // 第三步：验证通过，写入缓存（同时写入OTA缓存和应用缓存，确保万无一失）
       return caches.open(OTA_CACHE).then(function (otaCache) {
@@ -269,7 +274,7 @@
             });
           });
         }).then(function () {
-          localStorage.setItem(VERSION_KEY, updateInfo.version);
+          localStorage.setItem(VERSION_KEY, actualVersion);
           // 通知Service Worker跳过等待立即激活
           if (navigator.serviceWorker && navigator.serviceWorker.controller) {
             navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
