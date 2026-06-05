@@ -24,6 +24,11 @@ const ROUTE_MAP = {
 const NAV_PAGES = ['home', 'bank-list', 'practice', 'collection', 'wrong'];
 
 /**
+ * 不需要登录即可访问的页面
+ */
+const PUBLIC_PAGES = ['login'];
+
+/**
  * 导航到指定 hash 路由
  * @param {string} hash - 目标路由，如 "#home"、"#bank-detail/1"
  */
@@ -37,6 +42,12 @@ function navigateTo(hash) {
   // 如果路由不存在，跳转到首页
   if (!ROUTE_MAP[routeName]) {
     window.location.hash = '#home';
+    return;
+  }
+
+  // 登录拦截：未登录时只能访问公开页面
+  if (!PUBLIC_PAGES.includes(routeName) && window.AuthModule && !window.AuthModule.isLoggedIn()) {
+    window.location.hash = '#login';
     return;
   }
 
@@ -56,6 +67,18 @@ function navigateTo(hash) {
 function switchPage(route) {
   const pageId = ROUTE_MAP[route];
   if (!pageId) return;
+
+  // 登录拦截
+  if (!PUBLIC_PAGES.includes(route) && window.AuthModule && !window.AuthModule.isLoggedIn()) {
+    switchPage('login');
+    return;
+  }
+
+  // 登录页隐藏底部导航栏，其他页面显示
+  var bottomNav = document.getElementById('bottom-nav');
+  if (bottomNav) {
+    bottomNav.style.display = (route === 'login') ? 'none' : '';
+  }
 
   // 找到当前活动页面
   const currentPage = document.querySelector('.page.active');
@@ -145,11 +168,15 @@ function initRouter() {
   });
 
   // 设置默认路由
+  var isLoggedIn = window.AuthModule && window.AuthModule.isLoggedIn();
   var currentHash = window.location.hash || '#home';
   var currentRoute = currentHash.replace('#', '');
   var currentRouteName = currentRoute.split('/')[0];
-  if (!currentHash || !ROUTE_MAP[currentRouteName]) {
-    window.location.hash = '#home';
+
+  if (!isLoggedIn && !PUBLIC_PAGES.includes(currentRouteName)) {
+    window.location.hash = '#login';
+  } else if (!currentHash || !ROUTE_MAP[currentRouteName]) {
+    window.location.hash = isLoggedIn ? '#home' : '#login';
   } else {
     switchPage(currentRouteName);
   }
