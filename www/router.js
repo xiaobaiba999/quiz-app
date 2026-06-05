@@ -14,14 +14,15 @@ const ROUTE_MAP = {
   'practice': 'page-practice',
   'result': 'page-result',
   'wrong': 'page-wrong',
-  'collection': 'page-collection'
+  'collection': 'page-collection',
+  'update': 'page-update'
 };
 
 /**
  * 底部导航栏对应的页面
  * 只有这些页面会高亮底部 tab
  */
-const NAV_PAGES = ['home', 'bank-list', 'practice', 'collection', 'wrong'];
+const NAV_PAGES = ['home', 'bank-list', 'practice', 'collection', 'wrong', 'update'];
 
 /**
  * 不需要登录即可访问的页面
