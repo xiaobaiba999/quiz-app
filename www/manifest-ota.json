@@ -1,6 +1,6 @@
 {
-  "version": "2.11.0",
-  "changelog": "OTA热更新localStorage注入方案；修复Capacitor WebView中OTA不生效问题；eval替代Blob URL",
+  "version": "2.12.0",
+  "changelog": "新增底部导航更新页面；检查更新移至独立页面；优化更新状态显示",
   "updateUrl": "",
   "files": {
     "index.html": "index.html",
