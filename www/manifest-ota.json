@@ -1,6 +1,6 @@
 {
-  "version": "2.8.0",
-  "changelog": "修复OTA更新后不生效问题；同时写入OTA缓存和应用缓存；更新SW后重启",
+  "version": "2.9.0",
+  "changelog": "OTA热更新测试；修复OTA更新后不生效问题；双缓存写入+双URL格式",
   "updateUrl": "",
   "files": {
     "index.html": "index.html",
