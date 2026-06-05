@@ -1,7 +1,7 @@
 // 刷题助手 - Service Worker
 // OTA 热更新支持：缓存优先 + 网络回退
 
-var APP_VERSION = '2.11.0';
+var APP_VERSION = '2.12.0';
 var CACHE_NAME = 'quiz-app-v' + APP_VERSION.replace(/\./g, '');
 var OTA_CACHE = 'quiz-app-ota';
 
