@@ -490,7 +490,7 @@ B. 选项B
 
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-  <!-- 脚本引入：OTA动态加载器 -->
+  <!-- 脚本引入：OTA动态加载器 + 原始脚本回退 -->
   <script>
   // OTA热更新加载器 - 优先从localStorage读取更新文件，否则加载本地文件
   (function() {
@@ -509,24 +509,11 @@ B. 选项B
       'practice.js', 'edit.js', 'app.js'
     ];
 
-    function loadScript(src, isOta) {
-      var s = document.createElement('script');
-      if (isOta) {
-        var blob = new Blob([src], {type: 'application/javascript'});
-        s.src = URL.createObjectURL(blob);
-      } else {
-        s.src = src;
-      }
-      s.async = false; // 保持顺序
-      document.head.appendChild(s);
-    }
-
     // 注入OTA版本的CSS
     if (otaFiles && otaFiles['style.css']) {
       var style = document.createElement('style');
       style.textContent = otaFiles['style.css'];
       document.head.appendChild(style);
-      // 移除原始CSS链接
       var origLink = document.querySelector('link[rel="stylesheet"][href="style.css"]');
       if (origLink) origLink.remove();
     }
@@ -537,13 +524,21 @@ B. 选项B
       if (verSpan) verSpan.textContent = otaVersion;
     }
 
-    // 加载所有脚本
+    // 加载脚本：OTA文件用eval执行，本地文件用<script>标签
     for (var i = 0; i < scripts.length; i++) {
       var name = scripts[i];
       if (otaFiles && otaFiles[name]) {
-        loadScript(otaFiles[name], true);
+        // OTA文件：直接eval执行（所有模块都是IIFE，eval安全可行）
+        try {
+          (0, eval)(otaFiles[name]);
+        } catch(e) {
+          console.error('[OTA] 执行 ' + name + ' 失败:', e);
+          // 回退到本地文件
+          document.write('<script src="' + name + '"><\/script>');
+        }
       } else {
-        loadScript(name, false);
+        // 本地文件：用document.write保持顺序
+        document.write('<script src="' + name + '"><\/script>');
       }
     }
   })();
