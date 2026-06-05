@@ -1,6 +1,6 @@
 {
-  "version": "2.6.0",
-  "changelog": "增加用户注册登录功能；支持忘记密码重置；增加退出登录；OTA下载进度提示；CDN缓存延迟检测与提示",
+  "version": "2.7.0",
+  "changelog": "OTA热更新测试；修复登录页显示bug；路由登录拦截；OTA先验证CDN再写入",
   "updateUrl": "",
   "files": {
     "index.html": "index.html",

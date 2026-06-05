@@ -7,7 +7,7 @@
 
   var VERSION_KEY = 'quiz_app_version';
   var UPDATE_CHECK_KEY = 'quiz_last_update_check';
-  var CURRENT_VERSION = '2.6.0';
+  var CURRENT_VERSION = '2.7.0';
 
   // OTA 清单地址：优先 jsDelivr（国内可访问），回退 GitHub Pages
   var MANIFEST_URLS = [
