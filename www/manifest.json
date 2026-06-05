@@ -2,7 +2,7 @@
   "name": "刷题助手",
   "short_name": "刷题",
   "description": "轻量级刷题 PWA 应用，支持题库导入与错题回顾",
-  "version": "2.10.0",
+  "version": "2.11.0",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F4F5F7",
