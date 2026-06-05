@@ -493,7 +493,7 @@
     var versionEl = document.getElementById('update-current-version');
     if (versionEl) {
       var otaVersion = localStorage.getItem('quiz_ota_version');
-      versionEl.textContent = otaVersion ? ('v' + otaVersion) : 'v2.11';
+      versionEl.textContent = otaVersion ? ('v' + otaVersion) : 'v2.12';
     }
   }
 })();
