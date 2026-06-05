@@ -77,6 +77,9 @@
     // 绑定检查更新事件
     bindCheckUpdateEvents();
 
+    // 初始化更新页面
+    initUpdatePage();
+
     // 绑定练习页面按钮事件
     window.PracticeModule.bindPracticeEvents();
 
@@ -141,6 +144,9 @@
         break;
       case 'collection':
         window.PracticeModule.renderCollectionPage();
+        break;
+      case 'update':
+        initUpdatePage();
         break;
     }
   }
@@ -441,26 +447,53 @@
 
   // ===== 检查更新事件绑定 =====
   function bindCheckUpdateEvents() {
-    var btnCheckUpdate = document.getElementById('btn-check-update');
+    var btnUpdateCheck = document.getElementById('btn-update-check');
 
-    if (btnCheckUpdate) {
-      btnCheckUpdate.addEventListener('click', function () {
-        window.UIModule.showToast('正在检查更新...', 2000);
+    if (btnUpdateCheck) {
+      btnUpdateCheck.addEventListener('click', function () {
+        var statusEl = document.getElementById('update-status');
+        if (statusEl) statusEl.textContent = '正在检查更新...';
+        btnUpdateCheck.disabled = true;
+        btnUpdateCheck.textContent = '检查中...';
+
         window.OTAModule.checkForUpdate().then(function (update) {
+          btnUpdateCheck.disabled = false;
+          btnUpdateCheck.textContent = '检查更新';
+
           if (!update) {
-            window.UIModule.showToast('未配置更新地址', 3000);
+            if (statusEl) statusEl.textContent = '未配置更新地址';
           } else if (update._error) {
-            window.UIModule.showToast('检查失败：' + update._error, 3000);
+            if (statusEl) statusEl.textContent = '检查失败：' + update._error;
           } else if (update._current) {
-            window.UIModule.showToast('已是最新版本 v' + update.localVersion, 3000);
+            if (statusEl) statusEl.textContent = '已是最新版本 v' + update.localVersion;
           } else {
-            // 发现新版本，由ota.js的_showUpdateModal处理
+            // 发现新版本
+            if (statusEl) statusEl.textContent = '发现新版本 v' + update.version;
+            var changelogEl = document.getElementById('update-changelog');
+            var changelogTextEl = document.getElementById('update-changelog-text');
+            if (changelogEl && changelogTextEl && update.changelog) {
+              changelogTextEl.textContent = update.changelog;
+              changelogEl.style.display = '';
+            }
+            // 由ota.js的_showUpdateModal处理下载
             window.OTAModule._showUpdateModalDirect(update);
           }
         }).catch(function (err) {
-          window.UIModule.showToast('检查失败：' + err.message, 3000);
+          btnUpdateCheck.disabled = false;
+          btnUpdateCheck.textContent = '检查更新';
+          var statusEl = document.getElementById('update-status');
+          if (statusEl) statusEl.textContent = '检查失败：' + err.message;
         });
       });
+    }
+  }
+
+  // ===== 更新页面初始化 =====
+  function initUpdatePage() {
+    var versionEl = document.getElementById('update-current-version');
+    if (versionEl) {
+      var otaVersion = localStorage.getItem('quiz_ota_version');
+      versionEl.textContent = otaVersion ? ('v' + otaVersion) : 'v2.11';
     }
   }
 })();
