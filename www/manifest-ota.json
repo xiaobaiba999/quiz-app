@@ -1,6 +1,6 @@
 {
-  "version": "2.10.0",
-  "changelog": "OTA更新CDN验证失败时自动回退GitHub Pages下载；修复CDN缓存延迟导致OTA不生效",
+  "version": "2.11.0",
+  "changelog": "OTA热更新localStorage注入方案；修复Capacitor WebView中OTA不生效问题；eval替代Blob URL",
   "updateUrl": "",
   "files": {
     "index.html": "index.html",
