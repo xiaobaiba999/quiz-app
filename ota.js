@@ -9,17 +9,20 @@
   var UPDATE_CHECK_KEY = 'quiz_last_update_check';
   var CURRENT_VERSION = '2.10.0';
 
-  // OTA 清单地址：优先 jsDelivr（国内可访问），回退 GitHub Pages
+  // OTA 清单地址：优先 jsDelivr（国内可访问），回退 GitHub Raw
   var MANIFEST_URLS = [
     'https://cdn.jsdelivr.net/gh/xiaobaiba999/quiz-app@main/www/manifest-ota.json',
-    'https://xiaobaiba999.github.io/quiz-app/manifest-ota.json'
+    'https://raw.githubusercontent.com/xiaobaiba999/quiz-app/main/www/manifest-ota.json'
   ];
 
   // 文件下载基础路径
   var FILE_BASE_URLS = [
     'https://cdn.jsdelivr.net/gh/xiaobaiba999/quiz-app@main/www/',
-    'https://xiaobaiba999.github.io/quiz-app/'
+    'https://raw.githubusercontent.com/xiaobaiba999/quiz-app/main/www/'
   ];
+
+  // GitHub Pages 回退地址（CDN验证失败时使用）
+  var GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/xiaobaiba999/quiz-app/main/www/';
 
   /**
    * 带自动回退的 HTTP GET JSON
@@ -158,15 +161,15 @@
     var _toastTimer = null;
     var downloadedTexts = {}; // 先暂存下载内容，验证通过后再写入缓存
 
-    // 如果是回退模式，只使用GitHub Pages地址
+    // 如果是回退模式，只使用GitHub Raw地址
     var baseUrls = _retryWithGithubPages
-      ? ['https://xiaobaiba999.github.io/quiz-app/']
+      ? [GITHUB_RAW_BASE]
       : FILE_BASE_URLS;
 
     function _showProgress() {
       if (_toastTimer) clearTimeout(_toastTimer);
       _toastTimer = setTimeout(function () {
-        var source = _retryWithGithubPages ? '（GitHub回退）' : '';
+        var source = _retryWithGithubPages ? '（GitHub Raw回退）' : '';
         window.UIModule && window.UIModule.showToast('正在下载 ' + completedFiles + '/' + totalFiles + ' 个文件' + source + '...', 2000);
       }, 100);
     }
@@ -199,7 +202,7 @@
       if (!otaText) {
         // ota.js下载失败，尝试GitHub Pages回退
         if (!_retryWithGithubPages) {
-          window.UIModule && window.UIModule.showToast('CDN下载失败，尝试GitHub回退...', 2000);
+          window.UIModule && window.UIModule.showToast('CDN下载失败，尝试GitHub Raw回退...', 2000);
           return _directUpdateCache(updateInfo, true);
         }
         window.UIModule && window.UIModule.showToast('下载失败，请重试', 3000);
@@ -212,7 +215,7 @@
       if (!verified) {
         // CDN缓存未更新，如果不是回退模式，自动尝试GitHub Pages
         if (!_retryWithGithubPages) {
-          window.UIModule && window.UIModule.showToast('CDN缓存未更新，尝试GitHub回退...', 2000);
+          window.UIModule && window.UIModule.showToast('CDN缓存未更新，尝试GitHub Raw回退...', 2000);
           return _directUpdateCache(updateInfo, true);
         }
         // GitHub Pages也验证失败，显示警告
