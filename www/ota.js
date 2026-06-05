@@ -105,7 +105,7 @@
           forceUpdate: manifest.forceUpdate || false
         };
       }
-      return { _current: true, remoteVersion: manifest.version };
+      return { _current: true, localVersion: CURRENT_VERSION };
     }).catch(function (err) {
       console.error('[OTA] 检查更新失败:', err);
       return { _error: err.message || '网络错误' };

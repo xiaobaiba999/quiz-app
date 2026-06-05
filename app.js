@@ -452,7 +452,7 @@
           } else if (update._error) {
             window.UIModule.showToast('检查失败：' + update._error, 3000);
           } else if (update._current) {
-            window.UIModule.showToast('已是最新版本 v' + update.remoteVersion, 3000);
+            window.UIModule.showToast('已是最新版本 v' + update.localVersion, 3000);
           } else {
             // 发现新版本，由ota.js的_showUpdateModal处理
             window.OTAModule._showUpdateModalDirect(update);
