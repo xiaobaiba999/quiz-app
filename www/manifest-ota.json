@@ -1,6 +1,6 @@
 {
-  "version": "2.9.0",
-  "changelog": "OTA热更新测试；修复OTA更新后不生效问题；双缓存写入+双URL格式",
+  "version": "2.10.0",
+  "changelog": "OTA更新CDN验证失败时自动回退GitHub Pages下载；修复CDN缓存延迟导致OTA不生效",
   "updateUrl": "",
   "files": {
     "index.html": "index.html",

@@ -7,7 +7,7 @@
 
   var VERSION_KEY = 'quiz_app_version';
   var UPDATE_CHECK_KEY = 'quiz_last_update_check';
-  var CURRENT_VERSION = '2.9.0';
+  var CURRENT_VERSION = '2.10.0';
 
   // OTA 清单地址：优先 jsDelivr（国内可访问），回退 GitHub Pages
   var MANIFEST_URLS = [
@@ -146,9 +146,9 @@
 
   /**
    * 直接更新缓存（写入 OTA 专用缓存，SW 会优先读取）
-   * 带进度提示和CDN缓存验证
+   * 带进度提示和CDN缓存验证，验证失败时自动回退GitHub Pages
    */
-  function _directUpdateCache(updateInfo) {
+  function _directUpdateCache(updateInfo, _retryWithGithubPages) {
     if (!('caches' in window)) return Promise.resolve(true);
 
     var fileKeys = Object.keys(updateInfo.files);
@@ -158,10 +158,16 @@
     var _toastTimer = null;
     var downloadedTexts = {}; // 先暂存下载内容，验证通过后再写入缓存
 
+    // 如果是回退模式，只使用GitHub Pages地址
+    var baseUrls = _retryWithGithubPages
+      ? ['https://xiaobaiba999.github.io/quiz-app/']
+      : FILE_BASE_URLS;
+
     function _showProgress() {
       if (_toastTimer) clearTimeout(_toastTimer);
       _toastTimer = setTimeout(function () {
-        window.UIModule && window.UIModule.showToast('正在下载 ' + completedFiles + '/' + totalFiles + ' 个文件...', 2000);
+        var source = _retryWithGithubPages ? '（GitHub回退）' : '';
+        window.UIModule && window.UIModule.showToast('正在下载 ' + completedFiles + '/' + totalFiles + ' 个文件' + source + '...', 2000);
       }, 100);
     }
 
@@ -174,7 +180,7 @@
 
       var downloadUrls = fileUrl.startsWith('http')
         ? [fileUrl]
-        : FILE_BASE_URLS.map(function (base) { return base + fileUrl; });
+        : baseUrls.map(function (base) { return base + fileUrl; });
 
       return _httpGetTextWithFallback(downloadUrls).then(function (text) {
         completedFiles++;
@@ -191,6 +197,11 @@
       // 第二步：验证下载的ota.js是否包含新版本号
       var otaText = downloadedTexts['ota.js'];
       if (!otaText) {
+        // ota.js下载失败，尝试GitHub Pages回退
+        if (!_retryWithGithubPages) {
+          window.UIModule && window.UIModule.showToast('CDN下载失败，尝试GitHub回退...', 2000);
+          return _directUpdateCache(updateInfo, true);
+        }
         window.UIModule && window.UIModule.showToast('下载失败，请重试', 3000);
         return false;
       }
@@ -199,7 +210,12 @@
       var verified = match && match[1] === updateInfo.version;
 
       if (!verified) {
-        // CDN缓存未更新，下载到的是旧版本代码，不写入缓存
+        // CDN缓存未更新，如果不是回退模式，自动尝试GitHub Pages
+        if (!_retryWithGithubPages) {
+          window.UIModule && window.UIModule.showToast('CDN缓存未更新，尝试GitHub回退...', 2000);
+          return _directUpdateCache(updateInfo, true);
+        }
+        // GitHub Pages也验证失败，显示警告
         _showCDNCacheWarning(updateInfo.version);
         return false;
       }
